@@ -1,11 +1,20 @@
-import { onAuthChange, logoutUser } from './firebase-config.js';
-import { setCurrentUser, hydrateFromLocal, startSync, stopSync } from './db.js';
-import { setState, getState, subscribe } from './state.js';
+/* Gezi Pro — bootstrap.
+   Tek kullanıcı / kendi telefonu: AUTH DEVRE DIŞI. Uygulama doğrudan
+   galeri/harita'ya açılır ve Firebase config GEREKTİRMEZ — boot yolunda
+   hiç firebase import edilmez, bu yüzden config'siz ve çevrimdışı da açılır.
+
+   Auth'u geri açmak için:  AUTH_ENABLED = true
+   (Login + Firebase senkron akışı js/auth.js'de korunuyor; sprint sonunda
+   etkinleştirilecek.) */
+
+import { setState, subscribe } from './state.js';
+import { getAllPhotos } from './idb.js';
 import { showToast } from './components/toast.js';
 
-import { LoginView  } from './views/login.js';
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
+
+const AUTH_ENABLED = false;   // <-- Auth en sona bırakıldı.
 
 const VIEWS = {
   galeri: GaleriView,
@@ -19,62 +28,31 @@ const NAV_ITEMS = [
 
 let _currentView = 'galeri';
 let _viewInstance = null;
-let _authenticated = false;
-
-// --- Auth ---
-
-onAuthChange(async user => {
-  if (user) {
-    setCurrentUser(user.uid);
-    setState('user', { uid: user.uid, email: user.email });
-    await hydrateFromLocal();   // offline-first: önce localden render
-    startSync();                // sprint1: dinleyici iskeleti
-    _authenticated = true;
-    showAppUI();
-    navigate(initialView());
-  } else {
-    stopSync();
-    _authenticated = false;
-    setState('user', null);
-    teardownView();
-    hideAppUI();
-    renderLogin();
-  }
-});
-
-function initialView() {
-  const hash = (location.hash.replace('#', '') || '').trim();
-  return VIEWS[hash] ? hash : 'galeri';
-}
 
 // --- UI Show/Hide ---
 
-function showAppUI() {
+export function showAppUI() {
   document.querySelector('.header').style.display = 'flex';
   document.querySelector('.bottom-nav').style.display = 'flex';
   document.querySelector('.fab').style.display = 'flex';
 }
 
-function hideAppUI() {
+export function hideAppUI() {
   document.querySelector('.header').style.display = 'none';
   document.querySelector('.bottom-nav').style.display = 'none';
   document.querySelector('.fab').style.display = 'none';
 }
 
-// --- Login ---
-
-function renderLogin() {
-  const app  = document.getElementById('app');
-  const view = new LoginView();
-  app.innerHTML = view.render();
-  view.afterRender();
-}
-
 // --- Router ---
 
-function teardownView() {
+export function teardownView() {
   _viewInstance?.destroy?.();
   _viewInstance = null;
+}
+
+export function initialView() {
+  const hash = (location.hash.replace('#', '') || '').trim();
+  return VIEWS[hash] ? hash : 'galeri';
 }
 
 export function navigate(viewKey) {
@@ -106,7 +84,6 @@ function updateNav(activeKey) {
 }
 
 window.addEventListener('hashchange', () => {
-  if (!_authenticated) return;
   const hash = location.hash.replace('#', '') || 'galeri';
   if (hash !== _currentView) navigate(hash);
 });
@@ -117,10 +94,6 @@ subscribe('photos', (photos) => {
   const el = document.getElementById('headerCount');
   if (el) el.textContent = photos?.length ? `${photos.length} yer` : '';
 });
-
-// --- Logout ---
-
-document.getElementById('logoutBtn').addEventListener('click', () => logoutUser());
 
 // --- FAB (foto ekleme: SPRINT 2) ---
 
@@ -140,10 +113,7 @@ document.getElementById('fabBtn').addEventListener('click', () => {
   `).join('');
 
   nav.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => {
-      if (!_authenticated) return;
-      navigate(el.dataset.view);
-    });
+    el.addEventListener('click', () => navigate(el.dataset.view));
   });
 })();
 
@@ -153,6 +123,27 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   });
+}
+
+// --- Boot ---
+
+/** Auth'suz boot: offline-first, tek kullanıcı. Firebase'e dokunmaz. */
+async function bootLocal() {
+  const photos = await getAllPhotos();   // IndexedDB source-of-truth
+  setState('photos', photos);
+  setState('user', { uid: 'local', email: null });
+  showAppUI();
+  navigate(initialView());
+}
+
+if (AUTH_ENABLED) {
+  // Firebase yalnızca burada (dinamik) yüklenir; boot yolunu temiz tutar.
+  import('./auth.js')
+    .then(m => m.startAuthFlow())
+    .catch(err => { console.error('[auth] yüklenemedi, local boot:', err); bootLocal(); });
+} else {
+  document.getElementById('logoutBtn')?.style.setProperty('display', 'none');
+  bootLocal();
 }
 
 // --- SVG Icons ---

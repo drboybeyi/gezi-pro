@@ -13,6 +13,7 @@ const SHELL = [
   './manifest.json',
   './css/style.css',
   './js/app.js',
+  './js/auth.js',
   './js/firebase-config.js',
   './js/state.js',
   './js/idb.js',
