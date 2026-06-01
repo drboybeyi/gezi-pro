@@ -4,6 +4,10 @@
 
 import { buildDraft, savePhoto } from '../photos.js';
 import { showToast } from './toast.js';
+import { CATEGORIES, DEFAULT_CATEGORY } from '../categories.js';
+
+const catOptions = (selected) => CATEGORIES.map(c =>
+  `<option value="${c.key}"${c.key === selected ? ' selected' : ''}>${c.emoji} ${c.label}</option>`).join('');
 
 const AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
                'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -62,6 +66,10 @@ export async function openPhotoForm(file) {
           <input type="text" id="pfTitle" class="form-control" placeholder="Örn. Galata Kulesi">
         </div>
         <div class="form-group">
+          <label class="form-label">Kategori</label>
+          <select id="pfCat" class="form-control">${catOptions(DEFAULT_CATEGORY)}</select>
+        </div>
+        <div class="form-group">
           <label class="form-label">Not (opsiyonel)</label>
           <textarea id="pfNote" class="form-control" rows="2" placeholder="Bir şeyler yaz…"></textarea>
         </div>
@@ -77,6 +85,7 @@ export async function openPhotoForm(file) {
 
   const titleEl  = root.querySelector('#pfTitle');
   const noteEl   = root.querySelector('#pfNote');
+  const catEl    = root.querySelector('#pfCat');
   const locEl    = root.querySelector('#pfLoc');
   const saveEl   = root.querySelector('#pfSave');
   const cancelEl = root.querySelector('#pfCancel');
@@ -93,7 +102,7 @@ export async function openPhotoForm(file) {
     draft = {
       record: {
         id: (crypto.randomUUID?.() || `p${Date.now()}`),
-        title: '', note: '', lat: null, lng: null, locSource: 'none',
+        title: '', note: '', category: DEFAULT_CATEGORY, lat: null, lng: null, locSource: 'none',
         locError: 'unknown', thumb: null, w: 0, h: 0,
         takenAt: file.lastModified || Date.now(), createdAt: Date.now(), syncState: 'local',
       },
@@ -111,8 +120,9 @@ export async function openPhotoForm(file) {
     if (!draft) return;
     saveEl.disabled = true;
     saveEl.textContent = 'Kaydediliyor…';
-    draft.record.title = titleEl.value.trim() || defaultTitle(draft.record.takenAt);
-    draft.record.note  = noteEl.value.trim();
+    draft.record.title    = titleEl.value.trim() || defaultTitle(draft.record.takenAt);
+    draft.record.note     = noteEl.value.trim();
+    draft.record.category = catEl.value || DEFAULT_CATEGORY;
     try {
       await savePhoto(draft.record, draft.original);
       URL.revokeObjectURL(objectUrl);

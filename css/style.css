@@ -1,21 +1,22 @@
 /* ============================================================
    Gezi Pro — Design System
-   Sıcak "seyahat defteri" paleti + teal aksan.
+   Defter 360 paleti: sıcak bej zemin, koyu kahve vurgu, klasik defter hissi.
    ============================================================ */
 
 :root {
-  --bg-primary:     #f4efe6;
-  --bg-secondary:   #ece3d3;
+  --bg-primary:     #f5ede0;
+  --bg-secondary:   #ebe0cc;
   --surface:        #fffdf8;
-  --text-primary:   #2c2a26;
-  --text-secondary: #6b655c;
-  --accent:         #1f6f6b;   /* teal */
-  --accent-hover:   #185955;
-  --accent-soft:    #e3f0ef;
-  --danger:         #b5462f;
-  --success:        #4f7a3a;
-  --border:         #ddd2bf;
-  --shadow:         rgba(44, 42, 38, 0.12);
+  --text-primary:   #3d2817;
+  --text-secondary: #6b4f3a;
+  --accent:         #8b6f47;   /* Defter 360 kahve */
+  --accent-hover:   #6b5435;
+  --accent-soft:    #efe6d3;
+  --danger:         #9a4a3a;
+  --success:        #5a7a3a;
+  --warning:        #c9923c;
+  --border:         #d4c5a8;
+  --shadow:         rgba(61, 40, 23, 0.12);
 
   --header-h: 56px;
   --nav-h:    64px;
@@ -163,6 +164,28 @@ textarea.form-control { resize: vertical; font-family: inherit; }
 .gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gallery-cell--empty { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 28px; }
 .gallery-pin { position: absolute; right: 4px; bottom: 4px; font-size: 13px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+
+/* ---------------- Kategori rozeti & iğne ---------------- */
+.cat-badge {
+  position: absolute; top: 4px; left: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 5px;
+  border-radius: 999px; font-size: 12px; line-height: 1;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.cat-badge--inline {
+  position: static; vertical-align: middle; margin-right: 6px;
+  width: 26px; height: 26px; font-size: 14px; box-shadow: none;
+}
+
+/* Leaflet divIcon: kategori renginde damla iğne */
+.cat-pin-wrap { background: none; border: none; }
+.cat-pin {
+  display: block; width: 18px; height: 18px;
+  border: 2px solid #fff; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg); transform-origin: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.45);
+}
 
 /* ---------------- Empty state ---------------- */
 .empty-state {

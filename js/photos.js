@@ -3,10 +3,11 @@
    IndexedDB (metadata + orijinal) -> state güncelle.
    Firebase Storage'a yükleme + senkron: Sprint 3 (Auth ile birlikte). */
 
-import { putPhoto, putOriginal, getAllPhotos, deletePhoto } from './idb.js';
+import { putPhoto, putOriginal, getAllPhotos, getPhoto, deletePhoto } from './idb.js';
 import { setState } from './state.js';
 import { readExif, getDeviceLocation } from './utils/exif.js';
 import { makeThumbnail } from './utils/thumbnail.js';
+import { DEFAULT_CATEGORY } from './categories.js';
 
 function uid() {
   return (crypto.randomUUID?.() ||
@@ -73,6 +74,7 @@ export async function buildDraft(file) {
     id: uid(),
     title: '',
     note: '',
+    category: DEFAULT_CATEGORY,   // formdaki seçici üzerine yazar
     lat, lng, locSource, locError,
     thumb: thumb?.dataUrl || null,
     w: thumb?.width || 0, h: thumb?.height || 0,
@@ -94,5 +96,13 @@ export async function savePhoto(record, originalBlob) {
 
 export async function removePhoto(id) {
   await deletePhoto(id);
+  await refresh();
+}
+
+/** Var olan bir kaydı kısmen güncelle (ör. kategori değişimi) + state tazele. */
+export async function updatePhoto(id, patch) {
+  const cur = await getPhoto(id);
+  if (!cur) return;
+  await putPhoto({ ...cur, ...patch });
   await refresh();
 }

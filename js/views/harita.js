@@ -4,6 +4,19 @@
 
 import { getState, subscribe } from '../state.js';
 import { openDetailSheet } from '../components/sheet.js';
+import { catOf } from '../categories.js';
+
+/** Kategori rengine boyalı damla (teardrop) iğne — Leaflet divIcon. */
+function catPinIcon(category) {
+  const c = catOf(category);
+  return L.divIcon({
+    className: 'cat-pin-wrap',
+    html: `<span class="cat-pin" style="background:${c.color}"></span>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 22],   // damlanın ucu
+    popupAnchor: [0, -20],
+  });
+}
 
 const DEFAULT_CENTER = [39.0, 35.0]; // Türkiye geneli
 const DEFAULT_ZOOM   = 5;
@@ -57,10 +70,10 @@ export class HaritaView {
 
     const located = photos.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
     located.forEach(p => {
-      L.marker([p.lat, p.lng])
+      L.marker([p.lat, p.lng], { icon: catPinIcon(p.category) })
         .addTo(this._markers)
         .on('click', () => openDetailSheet(p))
-        .bindTooltip(p.title || 'Fotoğraf');
+        .bindTooltip(`${catOf(p.category).emoji} ${p.title || 'Fotoğraf'}`);
     });
 
     if (located.length) {

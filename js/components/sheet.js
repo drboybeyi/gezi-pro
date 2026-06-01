@@ -3,8 +3,12 @@
    silme imkânı sunar. */
 
 import { googleMapsDirections, appleMapsDirections, googleMapsPlace } from '../utils/maps.js';
-import { removePhoto } from '../photos.js';
+import { removePhoto, updatePhoto } from '../photos.js';
 import { showToast } from './toast.js';
+import { CATEGORIES, catOf } from '../categories.js';
+
+const catOptions = (selected) => CATEGORIES.map(c =>
+  `<option value="${c.key}"${c.key === selected ? ' selected' : ''}>${c.emoji} ${c.label}</option>`).join('');
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27,6 +31,7 @@ export function openDetailSheet(photo) {
   const root = ensureRoot();
   const hasGps = Number.isFinite(photo?.lat) && Number.isFinite(photo?.lng);
   const title = esc(photo?.title) || 'İsimsiz yer';
+  const cat = catOf(photo?.category);
 
   root.innerHTML = `
     <div class="sheet" role="dialog" aria-modal="true">
@@ -35,8 +40,15 @@ export function openDetailSheet(photo) {
         ? `<img class="sheet-photo" src="${photo.thumb}" alt="${title}">`
         : `<div class="sheet-photo sheet-photo--empty">🏞️</div>`}
       <div class="sheet-body">
-        <h2 class="sheet-title">${title}</h2>
+        <h2 class="sheet-title">
+          <span class="cat-badge cat-badge--inline" style="background:${cat.color};color:${cat.fg}">${cat.emoji}</span>
+          ${title}
+        </h2>
         ${photo?.note ? `<p class="sheet-note">${esc(photo.note)}</p>` : ''}
+        <div class="form-group sheet-cat">
+          <label class="form-label">Kategori</label>
+          <select id="sheetCat" class="form-control">${catOptions(cat.key)}</select>
+        </div>
         ${hasGps ? `
           <div class="sheet-coords">📍 ${photo.lat.toFixed(5)}, ${photo.lng.toFixed(5)}</div>
           <div class="sheet-actions">
@@ -53,6 +65,22 @@ export function openDetailSheet(photo) {
   `;
   root.style.display = 'flex';
   requestAnimationFrame(() => root.classList.add('open'));
+
+  root.querySelector('#sheetCat').addEventListener('change', async (e) => {
+    const newCat = e.target.value;
+    try {
+      await updatePhoto(photo.id, { category: newCat });
+      photo.category = newCat;
+      // Başlıktaki rozeti güncelle
+      const c = catOf(newCat);
+      const badge = root.querySelector('.cat-badge--inline');
+      if (badge) { badge.style.background = c.color; badge.style.color = c.fg; badge.textContent = c.emoji; }
+      showToast(`Kategori: ${c.label}`, 'info');
+    } catch (err) {
+      console.error('[sheet] kategori güncelleme hatası', err);
+      showToast('Kategori değiştirilemedi', 'danger');
+    }
+  });
 
   root.querySelector('#sheetDelete').addEventListener('click', async () => {
     if (!confirm('Bu fotoğraf silinsin mi?')) return;
