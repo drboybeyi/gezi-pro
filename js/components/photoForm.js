@@ -13,12 +13,21 @@ function defaultTitle(takenAt) {
   return `${d.getDate()} ${AYLAR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const LOC_ERR_TR = {
+  denied:      'konum izni reddedildi',
+  unavailable: 'konum alınamadı (sinyal yok)',
+  timeout:     'konum zaman aşımına uğradı',
+  unsupported: 'cihaz konumu desteklenmiyor',
+  unknown:     'bilinmeyen konum hatası',
+};
+
 function locLine(record) {
   if (record.locSource === 'exif')
     return `📍 Fotoğraftan: ${record.lat.toFixed(5)}, ${record.lng.toFixed(5)}`;
   if (record.locSource === 'device')
     return `📍 Cihaz konumu: ${record.lat.toFixed(5)}, ${record.lng.toFixed(5)}`;
-  return `⚠️ Konum bulunamadı (fotoğrafta EXIF yok, cihaz konumu alınamadı)`;
+  const why = LOC_ERR_TR[record.locError] || 'fotoğrafta EXIF yok, cihaz konumu alınamadı';
+  return `⚠️ Konumsuz devam — ${why}. Yine de kaydedebilirsin.`;
 }
 
 let _root = null;
@@ -74,19 +83,29 @@ export async function openPhotoForm(file) {
 
   cancelEl.addEventListener('click', () => { URL.revokeObjectURL(objectUrl); close(); });
 
-  let draft = null;
+  // buildDraft normalde asla throw etmez (her adım withTimeout ile sarmalı);
+  // yine de beklenmedik bir hatada formu kilitlememek için minimal taslağa düş.
+  let draft;
   try {
-    const built = await buildDraft(file);   // EXIF -> fallback -> thumbnail
-    draft = built;
-    locEl.textContent = locLine(built.record);
-    locEl.classList.toggle('pf-loc--warn', built.record.locSource === 'none');
-    titleEl.placeholder = defaultTitle(built.record.takenAt);
-    saveEl.disabled = false;
+    draft = await buildDraft(file);
   } catch (err) {
-    console.error('[photoForm] draft hatası', err);
-    locEl.textContent = '❌ Fotoğraf işlenemedi';
-    showToast('Fotoğraf işlenemedi', 'danger');
+    console.error('[photoForm] beklenmedik buildDraft hatası:', err);
+    draft = {
+      record: {
+        id: (crypto.randomUUID?.() || `p${Date.now()}`),
+        title: '', note: '', lat: null, lng: null, locSource: 'none',
+        locError: 'unknown', thumb: null, w: 0, h: 0,
+        takenAt: file.lastModified || Date.now(), createdAt: Date.now(), syncState: 'local',
+      },
+      original: file,
+    };
   }
+
+  // Konum gelse de gelmese de form HER ZAMAN kullanılabilir hale gelir.
+  locEl.textContent = locLine(draft.record);
+  locEl.classList.toggle('pf-loc--warn', draft.record.locSource === 'none');
+  titleEl.placeholder = defaultTitle(draft.record.takenAt);
+  saveEl.disabled = false;
 
   saveEl.addEventListener('click', async () => {
     if (!draft) return;

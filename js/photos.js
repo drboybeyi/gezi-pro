@@ -13,6 +13,25 @@ function uid() {
     `p${Date.now().toString(36)}${Math.random().toString(16).slice(2, 8)}`);
 }
 
+/**
+ * Bir promise'i zaman aşımına/ hataya karşı sarmalar. ASLA reject etmez:
+ * süre dolarsa ya da promise reject ederse `fallback` ile resolve eder.
+ * Böylece hiçbir adım akışı kilitleyemez.
+ */
+function withTimeout(promise, ms, fallback, label) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } };
+    const t = setTimeout(() => {
+      if (!done) { console.warn(`[photos] ${label}: ${ms}ms zaman aşımı — atlanıyor`); finish(fallback); }
+    }, ms);
+    Promise.resolve(promise).then(finish, (e) => {
+      console.warn(`[photos] ${label}: hata — atlanıyor`, e);
+      finish(fallback);
+    });
+  });
+}
+
 /** state['photos']'ı IndexedDB'den yeniden yükle. */
 export async function refresh() {
   setState('photos', await getAllPhotos());
@@ -24,29 +43,44 @@ export async function refresh() {
  * @returns {Promise<{record:object, original:Blob}>}
  */
 export async function buildDraft(file) {
-  const exif = await readExif(file);
-  let lat = exif.lat, lng = exif.lng, locSource = 'exif';
+  console.log('[photos] buildDraft başladı:', file.name, file.type, `${Math.round(file.size/1024)}KB`);
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    const dev = await getDeviceLocation();
-    if (dev) { lat = dev.lat; lng = dev.lng; locSource = 'device'; }
-    else     { lat = null;    lng = null;    locSource = 'none'; }
+  // 1) EXIF — 3sn timeout. Takılırsa/başarısızsa konumsuz devam.
+  const exif = await withTimeout(
+    readExif(file), 3000, { lat: null, lng: null, takenAt: null }, 'EXIF');
+
+  let lat = exif.lat, lng = exif.lng, locSource = 'none', locError = null;
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    locSource = 'exif';
+  } else {
+    // 2) Cihaz konumu — 8sn timeout (iç + dış güvenlik ağı). Gelmezse konumsuz.
+    const dev = await withTimeout(
+      getDeviceLocation(8000), 9000, { error: 'timeout' }, 'GEO');
+    if (Number.isFinite(dev?.lat) && Number.isFinite(dev?.lng)) {
+      lat = dev.lat; lng = dev.lng; locSource = 'device';
+    } else {
+      lat = null; lng = null; locSource = 'none';
+      locError = dev?.error || 'timeout';
+    }
   }
 
-  const thumb = await makeThumbnail(file);
+  // 3) Thumbnail — 10sn timeout. Üretilemezse thumb'suz ama kaydedilebilir.
+  const thumb = await withTimeout(makeThumbnail(file), 10000, null, 'THUMB');
   const takenAt = exif.takenAt || file.lastModified || Date.now();
 
   const record = {
     id: uid(),
     title: '',
     note: '',
-    lat, lng, locSource,
-    thumb: thumb.dataUrl,
-    w: thumb.width, h: thumb.height,
+    lat, lng, locSource, locError,
+    thumb: thumb?.dataUrl || null,
+    w: thumb?.width || 0, h: thumb?.height || 0,
     takenAt,
     createdAt: Date.now(),
     syncState: 'local',
   };
+  console.log(`[photos] taslak hazır: locSource=${locSource} locError=${locError} thumb=${!!record.thumb}`);
   return { record, original: file };
 }
 
