@@ -1,0 +1,21 @@
+{
+  "name": "Gezi Pro",
+  "short_name": "Gezi Pro",
+  "description": "Gezdiğin yerleri fotoğraflarla ve haritada topla",
+  "theme_color": "#1f6f6b",
+  "background_color": "#f4efe6",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "./",
+  "scope": "./",
+  "lang": "tr",
+  "categories": ["travel", "lifestyle", "photo"],
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
