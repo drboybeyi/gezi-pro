@@ -1,8 +1,13 @@
 /* Gezi Pro — alttan açılan detay sheet'i.
-   Bir fotoğraf kaydının detayını + Google/Apple Maps yol tarifi linklerini
-   gösterir. Sprint 1'de bileşen hazır; foto verisi Sprint 2'de dolacak. */
+   Bir fotoğrafın detayını + Google/Apple Maps yol tarifi linklerini gösterir,
+   silme imkânı sunar. */
 
 import { googleMapsDirections, appleMapsDirections, googleMapsPlace } from '../utils/maps.js';
+import { removePhoto } from '../photos.js';
+import { showToast } from './toast.js';
+
+const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let _el = null;
 
@@ -21,16 +26,17 @@ function ensureRoot() {
 export function openDetailSheet(photo) {
   const root = ensureRoot();
   const hasGps = Number.isFinite(photo?.lat) && Number.isFinite(photo?.lng);
+  const title = esc(photo?.title) || 'İsimsiz yer';
 
   root.innerHTML = `
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
       ${photo?.thumb
-        ? `<img class="sheet-photo" src="${photo.thumb}" alt="${photo.title || ''}">`
+        ? `<img class="sheet-photo" src="${photo.thumb}" alt="${title}">`
         : `<div class="sheet-photo sheet-photo--empty">🏞️</div>`}
       <div class="sheet-body">
-        <h2 class="sheet-title">${photo?.title || 'İsimsiz yer'}</h2>
-        ${photo?.note ? `<p class="sheet-note">${photo.note}</p>` : ''}
+        <h2 class="sheet-title">${title}</h2>
+        ${photo?.note ? `<p class="sheet-note">${esc(photo.note)}</p>` : ''}
         ${hasGps ? `
           <div class="sheet-coords">📍 ${photo.lat.toFixed(5)}, ${photo.lng.toFixed(5)}</div>
           <div class="sheet-actions">
@@ -41,11 +47,24 @@ export function openDetailSheet(photo) {
             <a class="btn btn-ghost" target="_blank" rel="noopener"
                href="${googleMapsPlace(photo.lat, photo.lng)}">Haritada göster</a>
           </div>` : `<div class="sheet-coords sheet-coords--muted">Konum bilgisi yok</div>`}
+        <button class="btn btn-danger btn-full" id="sheetDelete">Sil</button>
       </div>
     </div>
   `;
   root.style.display = 'flex';
   requestAnimationFrame(() => root.classList.add('open'));
+
+  root.querySelector('#sheetDelete').addEventListener('click', async () => {
+    if (!confirm('Bu fotoğraf silinsin mi?')) return;
+    try {
+      await removePhoto(photo.id);
+      closeSheet();
+      showToast('Silindi', 'info');
+    } catch (err) {
+      console.error('[sheet] silme hatası', err);
+      showToast('Silinemedi', 'danger');
+    }
+  });
 }
 
 export function closeSheet() {

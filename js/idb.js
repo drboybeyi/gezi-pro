@@ -1,11 +1,14 @@
 /* Gezi Pro — IndexedDB source-of-truth (offline-first).
-   Tüm okuma/yazma önce burada olur; Firebase yalnızca senkron katmanıdır
-   (bkz. db.js). Sprint 1: şema + CRUD iskeleti. Foto blob/thumbnail
-   yazımı ve senkron alanları sonraki sprintte doldurulacak. */
+   İki store:
+     - photos    : hafif metadata + thumbnail (state'e yüklenir, render bunu kullanır)
+     - originals  : tam çözünürlüklü orijinal blob'lar (yalnız gerektiğinde okunur;
+                    Sprint 3'te Firebase Storage'a bu yüklenecek)
+   Firebase yalnızca senkron katmanıdır (bkz. db.js). */
 
 const DB_NAME    = 'gezi-pro';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE      = 'photos';
+const ORIG       = 'originals';
 
 let _dbPromise = null;
 
@@ -20,7 +23,9 @@ export function openDB() {
         const store = idb.createObjectStore(STORE, { keyPath: 'id' });
         store.createIndex('takenAt', 'takenAt');     // galeri sıralaması
         store.createIndex('syncState', 'syncState'); // 'local' | 'synced' | 'pending'
-        // lat/lng harita için; coğrafi index gerekmiyor (client-side filtre).
+      }
+      if (!idb.objectStoreNames.contains(ORIG)) {
+        idb.createObjectStore(ORIG, { keyPath: 'id' }); // { id, blob }
       }
     };
 
@@ -30,8 +35,8 @@ export function openDB() {
   return _dbPromise;
 }
 
-function tx(mode) {
-  return openDB().then(idb => idb.transaction(STORE, mode).objectStore(STORE));
+function store(name, mode) {
+  return openDB().then(idb => idb.transaction(name, mode).objectStore(name));
 }
 
 function reqToPromise(request) {
@@ -41,37 +46,61 @@ function reqToPromise(request) {
   });
 }
 
-// --- CRUD ---
+// --- photos (metadata) ---
 
 export async function getAllPhotos() {
-  const store = await tx('readonly');
-  const all = await reqToPromise(store.getAll());
-  // En yeni üstte.
-  return all.sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0));
+  const s = await store(STORE, 'readonly');
+  const all = await reqToPromise(s.getAll());
+  return all.sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0)); // en yeni üstte
 }
 
 export async function getPhoto(id) {
-  const store = await tx('readonly');
-  return reqToPromise(store.get(id));
+  const s = await store(STORE, 'readonly');
+  return reqToPromise(s.get(id));
 }
 
 export async function putPhoto(photo) {
-  const store = await tx('readwrite');
-  await reqToPromise(store.put(photo));
+  const s = await store(STORE, 'readwrite');
+  await reqToPromise(s.put(photo));
   return photo.id;
 }
 
 export async function bulkPut(photos) {
-  const store = await tx('readwrite');
-  await Promise.all(photos.map(p => reqToPromise(store.put(p))));
+  const s = await store(STORE, 'readwrite');
+  await Promise.all(photos.map(p => reqToPromise(s.put(p))));
 }
 
 export async function deletePhoto(id) {
-  const store = await tx('readwrite');
-  return reqToPromise(store.delete(id));
+  const idb = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = idb.transaction([STORE, ORIG], 'readwrite');
+    t.objectStore(STORE).delete(id);
+    t.objectStore(ORIG).delete(id);
+    t.oncomplete = () => resolve();
+    t.onerror    = () => reject(t.error);
+  });
 }
 
 export async function clearAll() {
-  const store = await tx('readwrite');
-  return reqToPromise(store.clear());
+  const idb = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = idb.transaction([STORE, ORIG], 'readwrite');
+    t.objectStore(STORE).clear();
+    t.objectStore(ORIG).clear();
+    t.oncomplete = () => resolve();
+    t.onerror    = () => reject(t.error);
+  });
+}
+
+// --- originals (tam çözünürlük blob) ---
+
+export async function putOriginal(id, blob) {
+  const s = await store(ORIG, 'readwrite');
+  return reqToPromise(s.put({ id, blob }));
+}
+
+export async function getOriginal(id) {
+  const s = await store(ORIG, 'readonly');
+  const rec = await reqToPromise(s.get(id));
+  return rec?.blob || null;
 }

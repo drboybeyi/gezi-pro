@@ -9,7 +9,7 @@
 
 import { setState, subscribe } from './state.js';
 import { getAllPhotos } from './idb.js';
-import { showToast } from './components/toast.js';
+import { openPhotoForm } from './components/photoForm.js';
 
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
@@ -95,10 +95,20 @@ subscribe('photos', (photos) => {
   if (el) el.textContent = photos?.length ? `${photos.length} yer` : '';
 });
 
-// --- FAB (foto ekleme: SPRINT 2) ---
+// --- FAB (foto ekleme) ---
 
-document.getElementById('fabBtn').addEventListener('click', () => {
-  showToast('Fotoğraf ekleme sonraki sprintte gelecek 📷', 'info');
+const _fileInput = document.createElement('input');
+_fileInput.type = 'file';
+_fileInput.accept = 'image/*';   // mobilde galeri/kamera seçimi sunar
+_fileInput.style.display = 'none';
+document.body.appendChild(_fileInput);
+
+document.getElementById('fabBtn').addEventListener('click', () => _fileInput.click());
+
+_fileInput.addEventListener('change', () => {
+  const file = _fileInput.files?.[0];
+  if (file) openPhotoForm(file);
+  _fileInput.value = '';   // aynı dosya tekrar seçilebilsin
 });
 
 // --- Bottom nav ---

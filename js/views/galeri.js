@@ -5,6 +5,9 @@
 import { getState, subscribe } from '../state.js';
 import { openDetailSheet } from '../components/sheet.js';
 
+const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 export class GaleriView {
   constructor() {
     this._unsub = null;
@@ -42,14 +45,16 @@ export class GaleriView {
       return;
     }
 
-    grid.innerHTML = photos.map(p => `
-      <button class="gallery-cell" data-id="${p.id}" aria-label="${p.title || 'Fotoğraf'}">
+    grid.innerHTML = photos.map(p => {
+      const t = esc(p.title) || 'Fotoğraf';
+      return `
+      <button class="gallery-cell" data-id="${p.id}" aria-label="${t}">
         ${p.thumb
-          ? `<img src="${p.thumb}" alt="${p.title || ''}" loading="lazy">`
+          ? `<img src="${p.thumb}" alt="${t}" loading="lazy">`
           : `<span class="gallery-cell--empty">🏞️</span>`}
         ${Number.isFinite(p.lat) ? `<span class="gallery-pin">📍</span>` : ''}
-      </button>
-    `).join('');
+      </button>`;
+    }).join('');
 
     grid.querySelectorAll('.gallery-cell').forEach(cell => {
       cell.addEventListener('click', () => {

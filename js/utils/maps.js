@@ -2,10 +2,9 @@
    Detay sheet'inde kullanılır. Platform tespiti ile Apple Maps (iOS)
    veya Google Maps tercih edilir; her ikisinin linki de üretilir. */
 
-export function googleMapsDirections(lat, lng, label = '') {
-  const q = label ? `${lat},${lng}` : `${lat},${lng}`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-    + (label ? `&destination_place_id=` : '');
+export function googleMapsDirections(lat, lng /*, label */) {
+  // label Google'ın dir API'sinde koordinatla birlikte kullanılmıyor; sade tut.
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
 export function googleMapsPlace(lat, lng) {
