@@ -219,11 +219,37 @@ textarea.form-control { resize: vertical; font-family: inherit; }
 .empty-state p { font-size: 14px; line-height: 1.5; }
 
 /* ---------------- Map ---------------- */
-.map-container {
-  width: 100%;
+.view-harita {
+  display: flex; flex-direction: column;
   height: calc(100vh - var(--header-h) - var(--nav-h) - var(--safe-top) - var(--safe-bottom));
 }
+.map-container { width: 100%; flex: 1 1 auto; min-height: 0; }
 .leaflet-container { background: var(--bg-secondary); }
+
+/* harita kategori filtre çubuğu */
+.harita-filter {
+  flex: 0 0 auto; display: flex; gap: 8px; align-items: center;
+  padding: 10px 12px; overflow-x: auto; white-space: nowrap;
+  background: var(--bg-primary); border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.harita-filter::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: opacity .12s, transform .08s;
+}
+.filter-chip:active { transform: scale(.96); }
+.filter-chip:not(.filter-chip--on) { opacity: .45; }
+.filter-chip--on { color: var(--text-primary); }
+.chip-dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1.5px solid var(--border); flex: 0 0 auto;
+}
+.filter-chip--all { font-weight: 800; }
+.filter-chip--all .chip-dot { display: none; }
 
 /* ---------------- Toast ---------------- */
 .toast-container {
