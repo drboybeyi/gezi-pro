@@ -64,6 +64,22 @@ body {
 }
 .header-btn:active { background: rgba(255,255,255,.28); }
 
+/* senkron durum rozeti (giriş yapınca görünür; nokta rengi durumu gösterir) */
+.sync-badge { position: relative; }
+.sync-dot {
+  position: absolute; right: 4px; bottom: 4px;
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid var(--accent);            /* header zemininden ayır */
+  background: var(--text-secondary);
+}
+.sync-badge--online  .sync-dot { background: #8ed16a; }   /* yeşil: senkron açık */
+.sync-badge--offline .sync-dot { background: #e7b54a; }   /* amber: çevrimdışı */
+.sync-badge--syncing .sync-dot { background: #fff; animation: syncPulse 1s ease-in-out infinite; }
+@keyframes syncPulse {
+  0%, 100% { opacity: .3; transform: scale(.7); }
+  50%      { opacity: 1;  transform: scale(1.15); }
+}
+
 /* ---------------- Main ---------------- */
 #app {
   padding-top: calc(var(--header-h) + var(--safe-top));

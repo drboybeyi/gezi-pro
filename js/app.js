@@ -10,6 +10,7 @@ import { getAllPhotos } from './idb.js';
 import { loadCategories } from './categories.js';
 import { openPhotoForm } from './components/photoForm.js';
 import { openCategoryManager } from './components/categoryManager.js';
+import { showToast } from './components/toast.js';
 
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
@@ -94,6 +95,29 @@ window.addEventListener('hashchange', () => {
 subscribe('photos', (photos) => {
   const el = document.getElementById('headerCount');
   if (el) el.textContent = photos?.length ? `${photos.length} yer` : '';
+});
+
+// --- Senkron durum rozeti (state'i db.js sürer; burada yalnız gösterim) ---
+
+const SYNC_UI = {
+  syncing: { cls: 'sync-badge--syncing', label: 'Senkronlanıyor…' },
+  online:  { cls: 'sync-badge--online',  label: 'Senkron açık ☁️' },
+  offline: { cls: 'sync-badge--offline', label: 'Çevrimdışı — bağlantı yok' },
+};
+
+subscribe('sync', (state) => {
+  const el = document.getElementById('syncBadge');
+  if (!el) return;
+  const ui = SYNC_UI[state];
+  if (!ui) { el.style.display = 'none'; el.dataset.label = ''; return; }
+  el.style.display = '';
+  el.className = `header-btn sync-badge ${ui.cls}`;
+  el.dataset.label = ui.label;
+});
+
+document.getElementById('syncBadge')?.addEventListener('click', (e) => {
+  const label = e.currentTarget.dataset.label;
+  if (label) showToast(label, 'info');
 });
 
 // --- FAB (foto ekleme) ---

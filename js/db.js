@@ -25,6 +25,9 @@ import { setSyncHooks, clearSyncHooks } from './sync-hooks.js';
 
 let _uid = null;
 let _unsubs = [];
+let _connUnsub = null;      // sürekli .info/connected izleyicisi
+let _connected = false;
+let _syncing   = false;
 
 // Silme-tombstone'ları bu süreden eskiyse RTDB'den tamamen kaldırılır.
 // 30 gün: çevrimdışı bir cihazın silmeyi öğrenmesi için güvenli pencere.
@@ -34,6 +37,25 @@ export function setCurrentUser(uid) { _uid = uid; }
 export function getUid() { return _uid; }
 
 function userRef(path) { return ref(db, `users/${_uid}/${path}`); }
+
+// ---- Senkron durum göstergesi (state('sync'): syncing|online|offline|null) ----
+
+/** Mevcut bayraklardan durum string'ini hesapla ve state'e yaz. */
+function reflectSync() {
+  if (!_uid) { setState('sync', null); return; }
+  setState('sync', _syncing ? 'syncing' : (_connected ? 'online' : 'offline'));
+}
+
+function startConnMonitor() {
+  stopConnMonitor();
+  const r = ref(db, '.info/connected');
+  const handler = (snap) => { _connected = (snap.val() === true); reflectSync(); };
+  onValue(r, handler);
+  _connUnsub = () => off(r, 'value', handler);
+}
+function stopConnMonitor() {
+  if (_connUnsub) { try { _connUnsub(); } catch {} _connUnsub = null; }
+}
 
 /** undefined alanları temizle (RTDB undefined kabul etmez) + blob düşür. */
 const clean = (o) => JSON.parse(JSON.stringify(o));
@@ -224,6 +246,9 @@ export async function startSync() {
     categoryChanged: pushCategory,
     categoryDeleted: pushCategoryDelete,
   });
+  _syncing = true;
+  startConnMonitor();   // bağlantı durumunu sürekli izle (online/offline)
+  reflectSync();        // -> 'syncing'
   try {
     await reconcileCategories();   // önce kategoriler (catOf bilsin), sonra fotoğraflar
     await reconcilePhotos();
@@ -231,10 +256,16 @@ export async function startSync() {
     // Reconcile çevrimdışı başarısız olsa bile canlı dinleyiciler bağlansın
     // (bağlantı dönünce uzak değişiklikler akar).
     attachLive();
+    _syncing = false;
+    reflectSync();      // -> 'online' / 'offline'
   }
 }
 
 export function stopSync() {
   detachLive();
+  stopConnMonitor();
   clearSyncHooks();
+  _syncing = false;
+  _connected = false;
+  setState('sync', null);   // çıkışta rozet gizlenir
 }
