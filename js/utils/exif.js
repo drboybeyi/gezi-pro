@@ -71,6 +71,13 @@ export function getDeviceLocation(timeout = 8000) {
       console.warn('[geo] navigator.geolocation yok');
       return resolve({ error: 'unsupported' });
     }
+    // Güvenli olmayan bağlamda (HTTPS/localhost dışı, ör. http://LAN-IP veya file://)
+    // tarayıcı getCurrentPosition'ı sessizce engeller; 8sn boşuna beklemeyelim.
+    if (window.isSecureContext === false) {
+      console.warn('[geo] güvenli bağlam değil (isSecureContext=false) — cihaz konumu engellenir. '
+        + 'HTTPS ya da http://localhost kullan.');
+      return resolve({ error: 'insecure' });
+    }
     console.log(`[geo] getCurrentPosition çağrılıyor (timeout=${timeout}ms)…`);
     let settled = false;
     navigator.geolocation.getCurrentPosition(

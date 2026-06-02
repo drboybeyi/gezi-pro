@@ -22,6 +22,7 @@ const LOC_ERR_TR = {
   unavailable: 'konum alınamadı (sinyal yok)',
   timeout:     'konum zaman aşımına uğradı',
   unsupported: 'cihaz konumu desteklenmiyor',
+  insecure:    'güvenli bağlam yok — HTTPS ya da localhost gerekir',
   unknown:     'bilinmeyen konum hatası',
 };
 
