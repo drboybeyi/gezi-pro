@@ -103,6 +103,14 @@ export async function removePhoto(id) {
   onPhotoDeleted(id);                      // buluta tombstone
 }
 
+/** Toplu silme: hepsini sil, TEK refresh, her biri için tombstone push. */
+export async function removePhotos(ids) {
+  if (!ids?.length) return;
+  for (const id of ids) await deletePhoto(id);
+  await refresh();
+  ids.forEach(id => onPhotoDeleted(id));
+}
+
 /** Var olan bir kaydı kısmen güncelle (ör. kategori değişimi) + state tazele. */
 export async function updatePhoto(id, patch) {
   const cur = await getPhoto(id);
