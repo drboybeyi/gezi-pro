@@ -155,7 +155,7 @@ textarea.form-control { resize: vertical; font-family: inherit; }
 
 /* ---------------- Search (galeri) ---------------- */
 .search-bar {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: calc(var(--header-h) + var(--safe-top)); z-index: 5;
   display: flex; align-items: center; gap: 8px;
   background: var(--bg-primary); margin: -12px -12px 12px; padding: 12px;
   border-bottom: 1px solid var(--border);

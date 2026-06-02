@@ -5,18 +5,10 @@
 import { getState, subscribe } from '../state.js';
 import { openDetailSheet } from '../components/sheet.js';
 import { catOf } from '../categories.js';
+import { normQuery, placeMatches } from '../utils/search.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-const norm = (s = '') => String(s).toLocaleLowerCase('tr').trim();
-
-/** Bir fotoğraf sorguyla eşleşiyor mu? (başlık + not + kategori adı) */
-function matches(p, q) {
-  if (!q) return true;
-  const hay = `${p.title || ''} ${p.note || ''} ${catOf(p.category).label}`;
-  return norm(hay).includes(q);
-}
 
 export class GaleriView {
   constructor() {
@@ -44,7 +36,7 @@ export class GaleriView {
     const clear = document.getElementById('galeriSearchClear');
 
     input?.addEventListener('input', () => {
-      this._query = norm(input.value);
+      this._query = normQuery(input.value);
       clear.hidden = !input.value;
       this._renderPhotos(getState('photos'));
     });
@@ -82,7 +74,7 @@ export class GaleriView {
     if (bar) bar.style.display = '';
 
     const q = this._query;
-    const shown = q ? photos.filter(p => matches(p, q)) : photos;
+    const shown = q ? photos.filter(p => placeMatches(p, q)) : photos;
 
     if (!shown.length) {
       grid.innerHTML = `

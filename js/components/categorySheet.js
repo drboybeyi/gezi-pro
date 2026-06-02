@@ -5,6 +5,7 @@
 
 import { getState, subscribe } from '../state.js';
 import { catOf } from '../categories.js';
+import { placeMatches } from '../utils/search.js';
 import { openDetailSheet } from './sheet.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
@@ -13,6 +14,7 @@ const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
 let _el = null;
 let _unsub = null;
 let _key = null;
+let _query = '';   // Pano'dan aktarılan arama (boşsa kategorinin tüm yerleri)
 
 function ensureRoot() {
   if (_el) return _el;
@@ -24,9 +26,11 @@ function ensureRoot() {
   return _el;
 }
 
-/** O kategoriye düşen fotoğraflar (bilinmeyen anahtar catOf ile 'diger'e folder). */
+/** O kategoriye düşen fotoğraflar (bilinmeyen anahtar catOf ile 'diger'e folder);
+    aktif arama varsa ona göre de süzülür. */
 function photosOf(key) {
-  return (getState('photos') || []).filter(p => catOf(p.category).key === key);
+  return (getState('photos') || [])
+    .filter(p => catOf(p.category).key === key && placeMatches(p, _query));
 }
 
 function renderGrid() {
@@ -60,9 +64,10 @@ function renderGrid() {
   });
 }
 
-export function openCategorySheet(key) {
+export function openCategorySheet(key, query = '') {
   const root = ensureRoot();
   _key = key;
+  _query = query;
   const cat = catOf(key);
 
   root.innerHTML = `
@@ -91,7 +96,7 @@ export function openCategorySheet(key) {
 
 function close() {
   _unsub?.(); _unsub = null;
-  _key = null;
+  _key = null; _query = '';
   if (!_el) return;
   _el.classList.remove('open');
   setTimeout(() => { if (_el) { _el.style.display = 'none'; _el.innerHTML = ''; } }, 220);
