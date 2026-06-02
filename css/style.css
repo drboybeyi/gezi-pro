@@ -290,3 +290,25 @@ textarea.form-control { resize: vertical; font-family: inherit; }
 .cm-add .cm-color { width: 42px; height: 44px; }
 .cm-add .form-control { flex: 1 1 auto; }
 .cm-add .btn { flex: 0 0 auto; }
+
+/* ---------------- Pano (kategori kırılımı) ---------------- */
+.pano-list { display: flex; flex-direction: column; gap: 8px; }
+.pano-card {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px 14px; cursor: pointer; text-align: left;
+  box-shadow: 0 1px 4px var(--shadow); transition: transform .08s, background .12s;
+}
+.pano-card:active { transform: scale(.99); background: var(--accent-soft); }
+.pano-card--empty { opacity: .5; box-shadow: none; cursor: default; }
+.pano-name { flex: 1 1 auto; font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.pano-count {
+  flex: 0 0 auto; min-width: 30px; text-align: center;
+  font-size: 16px; font-weight: 800; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 3px 10px;
+}
+.pano-card--empty .pano-count { color: var(--text-secondary); background: var(--bg-secondary); }
+
+/* kategori yerleri sheet'i */
+.cs-count { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-left: 6px; }
+.cs-grid { margin: 14px 0 16px; }

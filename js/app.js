@@ -15,17 +15,20 @@ import { openCategoryManager } from './components/categoryManager.js';
 
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
+import { DashboardView } from './views/dashboard.js';
 
 const AUTH_ENABLED = false;   // <-- Auth en sona bırakıldı.
 
 const VIEWS = {
   galeri: GaleriView,
   harita: HaritaView,
+  pano:   DashboardView,
 };
 
 const NAV_ITEMS = [
   { key: 'galeri', label: 'Galeri', icon: iconGaleri() },
   { key: 'harita', label: 'Harita', icon: iconHarita() },
+  { key: 'pano',   label: 'Pano',   icon: iconPano() },
 ];
 
 let _currentView = 'galeri';
@@ -177,5 +180,13 @@ function iconHarita() {
     <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
     <line x1="8" y1="2" x2="8" y2="18"/>
     <line x1="16" y1="6" x2="16" y2="22"/>
+  </svg>`;
+}
+
+function iconPano() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="20" x2="6" y2="13"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="18" y1="20" x2="18" y2="9"/>
   </svg>`;
 }
