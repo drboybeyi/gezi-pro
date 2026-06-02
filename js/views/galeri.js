@@ -69,7 +69,8 @@ export class GaleriView {
       this._renderPhotos(getState('photos'));
     });
 
-    document.getElementById('galeriSelectToggle')?.addEventListener('click', () => this._enterSelect());
+    document.getElementById('galeriSelectToggle')?.addEventListener('click', () =>
+      this._selectMode ? this._exitSelect() : this._enterSelect());
     document.getElementById('selCancel')?.addEventListener('click', () => this._exitSelect());
     document.getElementById('selAll')?.addEventListener('click', () => this._selectAllShown());
     document.getElementById('selDel')?.addEventListener('click', () => this._deleteSelected());
@@ -130,13 +131,14 @@ export class GaleriView {
     }
   }
 
-  /** Arama çubuğu <-> seçim çubuğu görünürlüğü + sayaç. */
+  /** Seçim çubuğu YALNIZ >=1 seçiliyken görünür; aksi halde arama çubuğu. */
   _syncBars() {
     const searchBar = document.getElementById('galeriSearchBar');
     const selectBar = document.getElementById('galeriSelectBar');
     const count     = document.getElementById('selCount');
-    if (searchBar) searchBar.hidden = this._selectMode;
-    if (selectBar) selectBar.hidden = !this._selectMode;
+    const has = this._selected.size > 0;
+    if (selectBar) selectBar.hidden = !has;
+    if (searchBar) searchBar.style.display = has ? 'none' : '';
     if (count) count.textContent = `${this._selected.size} seçildi`;
   }
 
@@ -158,7 +160,7 @@ export class GaleriView {
         </div>`;
       return;
     }
-    if (bar) bar.style.display = '';
+    this._syncBars();   // arama/seçim çubuğu görünürlüğü (seçim sayısına göre)
 
     const shown = this._shownPhotos(photos);
 

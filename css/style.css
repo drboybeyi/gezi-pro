@@ -216,13 +216,14 @@ textarea.form-control { resize: vertical; font-family: inherit; }
 }
 .search-select:active { transform: scale(.95); background: var(--accent-soft); }
 
-/* seçim modu çubuğu (arama çubuğunun yerine geçer) */
+/* seçim modu çubuğu (yalnız >=1 seçiliyken görünür) */
 .select-bar {
   position: sticky; top: calc(var(--header-h) + var(--safe-top)); z-index: 6;
   display: flex; align-items: center; gap: 10px;
   background: var(--accent-soft); margin: -12px -12px 12px; padding: 12px;
   border-bottom: 1px solid var(--border);
 }
+.select-bar[hidden] { display: none; }   /* author kuralı UA [hidden]'ı ezmesin */
 .select-cancel {
   flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
