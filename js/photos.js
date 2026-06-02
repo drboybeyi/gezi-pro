@@ -8,6 +8,7 @@ import { setState } from './state.js';
 import { readExif, getDeviceLocation } from './utils/exif.js';
 import { makeThumbnail } from './utils/thumbnail.js';
 import { DEFAULT_CATEGORY } from './categories.js';
+import { onPhotoChanged, onPhotoDeleted } from './sync-hooks.js';
 
 function uid() {
   return (crypto.randomUUID?.() ||
@@ -88,21 +89,26 @@ export async function buildDraft(file) {
 
 /** Taslağı (başlık/not düzenlenmiş) kalıcı kaydet + state'i tazele. */
 export async function savePhoto(record, originalBlob) {
+  record.updatedAt = Date.now();          // senkron (last-write-wins) için
   await putPhoto(record);
-  if (originalBlob) await putOriginal(record.id, originalBlob);
+  if (originalBlob) await putOriginal(record.id, originalBlob);  // orijinal yalnız local
   await refresh();
+  onPhotoChanged(record);                 // giriş varsa buluta push (yoksa no-op)
   return record.id;
 }
 
 export async function removePhoto(id) {
   await deletePhoto(id);
   await refresh();
+  onPhotoDeleted(id);                      // buluta tombstone
 }
 
 /** Var olan bir kaydı kısmen güncelle (ör. kategori değişimi) + state tazele. */
 export async function updatePhoto(id, patch) {
   const cur = await getPhoto(id);
   if (!cur) return;
-  await putPhoto({ ...cur, ...patch });
+  const next = { ...cur, ...patch, updatedAt: Date.now() };
+  await putPhoto(next);
   await refresh();
+  onPhotoChanged(next);
 }

@@ -136,19 +136,21 @@ export async function deleteCategoryRecord(key) {
 }
 
 /** Bir kategori silinince ondaki tüm fotoğrafları `toKey`'e taşı (tek transaction).
-    @returns {Promise<number>} taşınan fotoğraf sayısı. */
+    Taşınan kayıtlara updatedAt damgalanır (senkron için).
+    @returns {Promise<object[]>} taşınan (güncellenmiş) fotoğraf kayıtları. */
 export async function reassignPhotosCategory(fromKey, toKey) {
   const idb = await openDB();
   return new Promise((resolve, reject) => {
     const t = idb.transaction(STORE, 'readwrite');
     const s = t.objectStore(STORE);
-    let moved = 0;
+    const moved = [];
     s.openCursor().onsuccess = (e) => {
       const cur = e.target.result;
       if (!cur) return;
       if (cur.value.category === fromKey) {
-        cur.update({ ...cur.value, category: toKey });
-        moved++;
+        const next = { ...cur.value, category: toKey, updatedAt: Date.now() };
+        cur.update(next);
+        moved.push(next);
       }
       cur.continue();
     };

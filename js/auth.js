@@ -7,7 +7,7 @@
    Adım 1: auth + bağlantı testi. startSync() henüz no-op. */
 
 import { onAuthChange, logoutUser } from './firebase-config.js';
-import { setCurrentUser, stopSync, checkConnection /*, startSync*/ } from './db.js';
+import { setCurrentUser, startSync, stopSync } from './db.js';
 import { setState } from './state.js';
 import { showToast } from './components/toast.js';
 import { LoginView } from './views/login.js';
@@ -49,13 +49,14 @@ function ensureInit() {
       setState('user', { uid: user.uid, email: user.email });
       setHeaderAuthState(user);
       closeLogin();
-      if (explicit) {
-        showToast('Giriş yapıldı 👋', 'success');
-        // Bağlantı testi (adım 1): RTDB gerçekten erişilebilir mi?
-        const ok = await checkConnection();
-        showToast(ok ? 'Buluta bağlı ☁️' : 'Bulut bağlantısı kurulamadı', ok ? 'info' : 'danger');
+      if (explicit) showToast('Giriş yapıldı 👋', 'success');
+      try {
+        await startSync();   // reconcile (ilk girişte local yerleri buluta yükler) + canlı senkron
+        if (explicit) showToast('Senkronlandı ☁️', 'info');
+      } catch (e) {
+        console.warn('[auth] senkron hatası', e);
+        if (explicit) showToast('Senkron kurulamadı (çevrimdışı olabilir)', 'danger');
       }
-      // startSync();  // ADIM 2: çift yönlü senkron burada başlayacak.
     } else {
       localStorage.removeItem(AUTH_FLAG);
       setCurrentUser(null);

@@ -20,6 +20,7 @@ import {
   deleteCategoryRecord, reassignPhotosCategory, getAllPhotos,
 } from './idb.js';
 import { setState, getState } from './state.js';
+import { onCategoryChanged, onCategoryDeleted, onPhotoChanged } from './sync-hooks.js';
 
 export const DEFAULT_CATEGORY = 'diger';
 
@@ -132,9 +133,11 @@ export async function addCategory({ label, color }) {
     emoji: glyphFor(name),
     order: maxOrder + 10,
     builtin: false,
+    updatedAt: Date.now(),
   };
   await putCategory(cat);
   setCache([..._list, cat]);
+  onCategoryChanged(cat);                 // giriş varsa buluta push (yoksa no-op)
   return cat;
 }
 
@@ -154,9 +157,11 @@ export async function updateCategory(key, { label, color } = {}) {
     next.color = color;
     next.fg = fgFor(color);
   }
+  next.updatedAt = Date.now();
   await putCategory(next);
   setCache(_list.map(c => (c.key === key ? next : c)));
   repaintPhotos();
+  onCategoryChanged(next);
   return next;
 }
 
@@ -165,10 +170,13 @@ export async function updateCategory(key, { label, color } = {}) {
 export async function deleteCategory(key) {
   if (key === DEFAULT_CATEGORY) throw new Error('"Diğer" silinemez');
   if (!_map[key]) throw new Error('Kategori bulunamadı');
-  const moved = await reassignPhotosCategory(key, DEFAULT_CATEGORY);
+  const movedRecs = await reassignPhotosCategory(key, DEFAULT_CATEGORY);
   await deleteCategoryRecord(key);
   setCache(_list.filter(c => c.key !== key));
   // Taşınan fotoğraflar görünür olsun diye photos state'ini IDB'den tazele.
   setState('photos', await getAllPhotos());
-  return moved;
+  // Buluta: kategori tombstone'u + taşınan fotoğrafların yeni kategorisi.
+  onCategoryDeleted(key);
+  movedRecs.forEach(r => onPhotoChanged(r));
+  return movedRecs.length;
 }
