@@ -26,6 +26,10 @@ import { setSyncHooks, clearSyncHooks } from './sync-hooks.js';
 let _uid = null;
 let _unsubs = [];
 
+// Silme-tombstone'ları bu süreden eskiyse RTDB'den tamamen kaldırılır.
+// 30 gün: çevrimdışı bir cihazın silmeyi öğrenmesi için güvenli pencere.
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function setCurrentUser(uid) { _uid = uid; }
 export function getUid() { return _uid; }
 
@@ -153,6 +157,17 @@ function mergePlan(remote, localMap, idKey) {
   return { localPuts, localDels, remoteUpdates };
 }
 
+/** TTL'i geçmiş silme-tombstone'ları için RTDB silme yaması ({key: null}). */
+function tombstonePurges(remote) {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  const purges = {};
+  for (const k in remote) {
+    const r = remote[k];
+    if (r && r.deleted && (r.updatedAt || 0) < cutoff) purges[k] = null;
+  }
+  return purges;
+}
+
 async function reconcileCategories() {
   const snap = await get(userRef('categories'));
   const remote = snap.val() || {};
@@ -160,7 +175,10 @@ async function reconcileCategories() {
   const { localPuts, localDels, remoteUpdates } = mergePlan(remote, localMap, 'key');
   if (localPuts.length) await bulkPutCategories(localPuts);
   for (const key of localDels) if (key !== DEFAULT_CATEGORY) await deleteCategoryRecord(key);
-  if (Object.keys(remoteUpdates).length) await update(userRef('categories'), remoteUpdates);
+  const purges = tombstonePurges(remote);
+  const writes = { ...remoteUpdates, ...purges };
+  if (Object.keys(writes).length) await update(userRef('categories'), writes);
+  if (Object.keys(purges).length) console.log(`[db] ${Object.keys(purges).length} kategori tombstone temizlendi`);
   await loadCategories();   // cache + state('categories')
 }
 
@@ -171,7 +189,10 @@ async function reconcilePhotos() {
   const { localPuts, localDels, remoteUpdates } = mergePlan(remote, localMap, 'id');
   if (localPuts.length) await bulkPut(localPuts);
   for (const id of localDels) await deletePhoto(id);
-  if (Object.keys(remoteUpdates).length) await update(userRef('photos'), remoteUpdates);
+  const purges = tombstonePurges(remote);
+  const writes = { ...remoteUpdates, ...purges };
+  if (Object.keys(writes).length) await update(userRef('photos'), writes);
+  if (Object.keys(purges).length) console.log(`[db] ${Object.keys(purges).length} foto tombstone temizlendi`);
   setState('photos', await getAllPhotos());
 }
 
