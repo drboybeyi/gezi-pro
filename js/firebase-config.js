@@ -1,36 +1,37 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import {
-  getAuth, onAuthStateChanged,
+  getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
+// NOT: Storage KULLANILMIYOR (ücretsiz planda kalmak için). Fotoğraf
+// orijinalleri buluta yüklenmez; yalnızca metadata + thumbnail (RTDB).
+
 // ============================================================
-// TODO(config): Gezi-Pro Firebase Console > Project Settings'ten
-// alınan gerçek değerlerle değiştir. Aşağısı PLACEHOLDER'dır;
-// Auth/DB/Storage bu değerlerle çalışmaz.
-//   - databaseURL  : Realtime DB  europe-west1
-//   - storageBucket: Storage      europe-west3 (bucket adı yeterli;
-//                    bölge bucket oluşturulurken seçilir)
+// Gezi-Pro Firebase (proje: gezi-pro-97d0d, RTDB: europe-west1).
+// apiKey istemci tarafıdır (gizli değil); asıl güvenlik RTDB kurallarında.
 // ============================================================
 const firebaseConfig = {
-  apiKey:            "PLACEHOLDER_API_KEY",
-  authDomain:        "gezi-pro.firebaseapp.com",
-  databaseURL:       "https://gezi-pro-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId:         "gezi-pro",
-  storageBucket:     "gezi-pro.firebasestorage.app",
-  messagingSenderId: "PLACEHOLDER_SENDER_ID",
-  appId:             "PLACEHOLDER_APP_ID"
+  apiKey:            "AIzaSyAWgmFxia8r8dc-Cp_pVZoqgoPucJ-mCmc",
+  authDomain:        "gezi-pro-97d0d.firebaseapp.com",
+  databaseURL:       "https://gezi-pro-97d0d-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "gezi-pro-97d0d",
+  storageBucket:     "gezi-pro-97d0d.firebasestorage.app",
+  messagingSenderId: "287923478001",
+  appId:             "1:287923478001:web:6352f575b4a99487593850",
+  measurementId:     "G-C80KJJQ927"
 };
 
 const app = initializeApp(firebaseConfig);
-export const db      = getDatabase(app);
-export const auth    = getAuth(app);
-export const storage = getStorage(app);
+export const db   = getDatabase(app);
+export const auth = getAuth(app);
 
-// Placeholder mı? (UI'da uyarı göstermek için app.js kullanır.)
+// Oturum cihazda kalsın (reload sonrası giriş sürsün) — best-effort.
+setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+// Placeholder mı? (UI'da uyarı göstermek için login kullanır.)
 export const isConfigured = !firebaseConfig.apiKey.startsWith('PLACEHOLDER');
 
 export function getFirebaseErrorMessage(error) {

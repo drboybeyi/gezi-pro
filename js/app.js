@@ -1,11 +1,9 @@
 /* Gezi Pro — bootstrap.
-   Tek kullanıcı / kendi telefonu: AUTH DEVRE DIŞI. Uygulama doğrudan
-   galeri/harita'ya açılır ve Firebase config GEREKTİRMEZ — boot yolunda
-   hiç firebase import edilmez, bu yüzden config'siz ve çevrimdışı da açılır.
-
-   Auth'u geri açmak için:  AUTH_ENABLED = true
-   (Login + Firebase senkron akışı js/auth.js'de korunuyor; sprint sonunda
-   etkinleştirilecek.) */
+   OFFLINE-FIRST: App HER ZAMAN local açılır (IndexedDB ana kaynak); boot
+   yolunda Firebase import EDİLMEZ, bu yüzden config'siz/çevrimdışı da çalışır.
+   Giriş OPSİYONELDİR: header "Giriş" -> js/auth.js DİNAMİK yüklenir, Firebase
+   o an gelir, giriş yapılınca senkron başlar. Daha önce giriş yapıldıysa
+   (localStorage bayrağı) boot'ta oturum sessizce sürdürülür. */
 
 import { setState, subscribe } from './state.js';
 import { getAllPhotos } from './idb.js';
@@ -16,8 +14,6 @@ import { openCategoryManager } from './components/categoryManager.js';
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
 import { DashboardView } from './views/dashboard.js';
-
-const AUTH_ENABLED = false;   // <-- Auth en sona bırakıldı.
 
 const VIEWS = {
   galeri: GaleriView,
@@ -113,6 +109,13 @@ document.getElementById('fabBtn').addEventListener('click', () => _fileInput.cli
 // --- Kategori yönetimi (header) ---
 document.getElementById('catBtn')?.addEventListener('click', openCategoryManager);
 
+// --- Giriş / senkron (header) — Firebase yalnızca dokununca dinamik yüklenir ---
+document.getElementById('authBtn')?.addEventListener('click', () => {
+  import('./auth.js')
+    .then(m => m.openLogin())
+    .catch(err => console.error('[auth] yüklenemedi:', err));
+});
+
 _fileInput.addEventListener('change', () => {
   const file = _fileInput.files?.[0];
   if (file) openPhotoForm(file);
@@ -145,7 +148,7 @@ if ('serviceWorker' in navigator) {
 
 // --- Boot ---
 
-/** Auth'suz boot: offline-first, tek kullanıcı. Firebase'e dokunmaz. */
+/** Offline-first boot: her zaman local. Firebase'e dokunmaz. */
 async function bootLocal() {
   await loadCategories();                // kategori cache'i (senkron catOf için) — render'dan önce
   const photos = await getAllPhotos();   // IndexedDB source-of-truth
@@ -153,17 +156,16 @@ async function bootLocal() {
   setState('user', { uid: 'local', email: null });
   showAppUI();
   navigate(initialView());
+
+  // Daha önce giriş yapıldıysa oturumu sessizce sürdür (Firebase'i o an yükler).
+  if (localStorage.getItem('gezi_auth') === '1') {
+    import('./auth.js')
+      .then(m => m.resume())
+      .catch(err => console.warn('[auth] oturum sürdürülemedi:', err));
+  }
 }
 
-if (AUTH_ENABLED) {
-  // Firebase yalnızca burada (dinamik) yüklenir; boot yolunu temiz tutar.
-  import('./auth.js')
-    .then(m => m.startAuthFlow())
-    .catch(err => { console.error('[auth] yüklenemedi, local boot:', err); bootLocal(); });
-} else {
-  document.getElementById('logoutBtn')?.style.setProperty('display', 'none');
-  bootLocal();
-}
+bootLocal();
 
 // --- SVG Icons ---
 

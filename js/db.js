@@ -1,15 +1,14 @@
-/* Gezi Pro — Firebase senkron katmanı (IndexedDB <-> Realtime DB + Storage).
-   Sprint 1: İSKELET. IndexedDB source-of-truth; bu modül onu hidrate eder
-   ve view'ları beslemek için state'e yazar. Çift yönlü senkron (push/pull,
-   çakışma çözümü, Storage foto yükleme) SONRAKİ SPRINT.
+/* Gezi Pro — Firebase senkron katmanı (IndexedDB <-> Realtime DB).
+   ADIM 1 (BU ADIM): yalnızca kullanıcı kimliği + bağlantı testi.
+   Çift yönlü senkron (push/pull, ilk girişte local yükleme, çakışma çözümü)
+   SONRAKİ ADIM — startSync/stopSync şimdilik iskelet.
 
-   Kullanım (app.js):
-     setCurrentUser(uid) -> hydrateFromLocal() -> startSync()
-*/
+   Storage YOK: fotoğraf orijinalleri buluta gitmez; yalnız metadata + thumbnail.
+   IndexedDB ana kaynak; giriş olmadan da app local çalışır. */
 
 import { db } from './firebase-config.js';
 import {
-  ref, onValue, off
+  ref, onValue, off,
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 import { getAllPhotos } from './idb.js';
 import { setState } from './state.js';
@@ -29,15 +28,23 @@ export async function hydrateFromLocal() {
   return photos;
 }
 
-/** TODO(sprint2): RTDB -> local pull + local -> RTDB push + Storage upload.
-    Şimdilik yalnızca dinleyiciyi kurar; gelen veriyi henüz idb'ye yazmaz. */
+/** RTDB bağlantısını doğrula. `.info/connected` ilk `true` gelene kadar bekler;
+    `timeoutMs` içinde gelmezse false döner. (Adım 1 test kancası.) */
+export function checkConnection(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    const r = ref(db, '.info/connected');
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; off(r, 'value', handler); clearTimeout(t); resolve(v); } };
+    const t = setTimeout(() => finish(false), timeoutMs);
+    const handler = (snap) => { if (snap.val() === true) finish(true); };
+    onValue(r, handler, () => finish(false));
+  });
+}
+
+/** TODO(adım 2): RTDB <-> idb çift yönlü senkron + ilk girişte local push. */
 export function startSync() {
   if (!_uid) return;
-  const r = userRef('photos');
-  _listeners.photos = r;
-  onValue(r, () => {
-    // TODO(sprint2): snap.val() -> idb.bulkPut -> hydrateFromLocal()
-  }, (err) => console.warn('[db] sync listener error', err));
+  // İskelet: dinleyici yok. Sonraki adımda push/pull burada kurulacak.
 }
 
 export function stopSync() {

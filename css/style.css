@@ -126,6 +126,23 @@ body {
 .login-toggle { text-align: center; margin-top: 16px; font-size: 13.5px; color: var(--text-secondary); }
 .login-toggle a { color: var(--accent); font-weight: 700; cursor: pointer; }
 
+/* opsiyonel giriş örtüşü (app üstünde tam ekran; ✕ ile local'e dön) */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 400; overflow-y: auto;
+  background: var(--bg-primary);
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);
+}
+.auth-close {
+  position: fixed; z-index: 401;
+  top: calc(var(--safe-top) + 12px); right: 14px;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 17px; cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.auth-close:active { transform: scale(.95); }
+
 /* ---------------- Forms & buttons ---------------- */
 .form-group { margin-bottom: 14px; }
 .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
