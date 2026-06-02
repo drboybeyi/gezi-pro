@@ -4,9 +4,9 @@
 
 import { buildDraft, savePhoto } from '../photos.js';
 import { showToast } from './toast.js';
-import { CATEGORIES, DEFAULT_CATEGORY } from '../categories.js';
+import { getCategories, DEFAULT_CATEGORY } from '../categories.js';
 
-const catOptions = (selected) => CATEGORIES.map(c =>
+const catOptions = (selected) => getCategories().map(c =>
   `<option value="${c.key}"${c.key === selected ? ' selected' : ''}>${c.emoji} ${c.label}</option>`).join('');
 
 const AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',

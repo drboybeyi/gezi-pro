@@ -1,14 +1,17 @@
 /* Gezi Pro — IndexedDB source-of-truth (offline-first).
-   İki store:
-     - photos    : hafif metadata + thumbnail (state'e yüklenir, render bunu kullanır)
+   Üç store:
+     - photos     : hafif metadata + thumbnail (state'e yüklenir, render bunu kullanır)
      - originals  : tam çözünürlüklü orijinal blob'lar (yalnız gerektiğinde okunur;
                     Sprint 3'te Firebase Storage'a bu yüklenecek)
+     - categories : kullanıcı yönetimli kategoriler ({ key, label, color, ... });
+                    tek kaynak burası, ilk açılışta varsayılanlarla tohumlanır (bkz. categories.js)
    Firebase yalnızca senkron katmanıdır (bkz. db.js). */
 
 const DB_NAME    = 'gezi-pro';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE      = 'photos';
 const ORIG       = 'originals';
+const CATS       = 'categories';
 
 let _dbPromise = null;
 
@@ -26,6 +29,10 @@ export function openDB() {
       }
       if (!idb.objectStoreNames.contains(ORIG)) {
         idb.createObjectStore(ORIG, { keyPath: 'id' }); // { id, blob }
+      }
+      if (!idb.objectStoreNames.contains(CATS)) {
+        idb.createObjectStore(CATS, { keyPath: 'key' }); // { key, label, color, fg, emoji, order }
+        // Not: varsayılan tohumlama categories.js loadCategories()'te (store boşsa) yapılır.
       }
     };
 
@@ -103,4 +110,49 @@ export async function getOriginal(id) {
   const s = await store(ORIG, 'readonly');
   const rec = await reqToPromise(s.get(id));
   return rec?.blob || null;
+}
+
+// --- categories (kullanıcı yönetimli) ---
+
+export async function getAllCategories() {
+  const s = await store(CATS, 'readonly');
+  return reqToPromise(s.getAll());
+}
+
+export async function putCategory(cat) {
+  const s = await store(CATS, 'readwrite');
+  await reqToPromise(s.put(cat));
+  return cat.key;
+}
+
+export async function bulkPutCategories(cats) {
+  const s = await store(CATS, 'readwrite');
+  await Promise.all(cats.map(c => reqToPromise(s.put(c))));
+}
+
+export async function deleteCategoryRecord(key) {
+  const s = await store(CATS, 'readwrite');
+  return reqToPromise(s.delete(key));
+}
+
+/** Bir kategori silinince ondaki tüm fotoğrafları `toKey`'e taşı (tek transaction).
+    @returns {Promise<number>} taşınan fotoğraf sayısı. */
+export async function reassignPhotosCategory(fromKey, toKey) {
+  const idb = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = idb.transaction(STORE, 'readwrite');
+    const s = t.objectStore(STORE);
+    let moved = 0;
+    s.openCursor().onsuccess = (e) => {
+      const cur = e.target.result;
+      if (!cur) return;
+      if (cur.value.category === fromKey) {
+        cur.update({ ...cur.value, category: toKey });
+        moved++;
+      }
+      cur.continue();
+    };
+    t.oncomplete = () => resolve(moved);
+    t.onerror    = () => reject(t.error);
+  });
 }

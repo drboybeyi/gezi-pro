@@ -252,3 +252,41 @@ textarea.form-control { resize: vertical; font-family: inherit; }
   border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
 }
 .pf-loc--warn { background: #fff4e0; color: #8a5a14; }
+
+/* ---------------- Kategori yöneticisi ---------------- */
+.cm-hint { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 4px 0 14px; }
+.cm-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.cm-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 8px 10px;
+}
+.cm-swatch {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.cm-label { flex: 1 1 auto; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.cm-icon {
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
+  font-size: 15px; cursor: pointer;
+}
+.cm-icon:active { transform: scale(.95); }
+.cm-icon--danger { color: var(--danger); border-color: var(--danger); }
+.cm-icon--locked { border-style: dashed; cursor: default; opacity: .6; }
+
+.cm-row--edit { gap: 8px; }
+.cm-row--edit .cm-name { flex: 1 1 auto; padding: 9px 11px; }
+.cm-color {
+  flex: 0 0 auto; width: 38px; height: 38px; padding: 0;
+  border: 1px solid var(--border); border-radius: 9px; background: none; cursor: pointer;
+}
+.cm-color::-webkit-color-swatch-wrapper { padding: 3px; }
+.cm-color::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+.cm-add { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.cm-add .cm-color { width: 42px; height: 44px; }
+.cm-add .form-control { flex: 1 1 auto; }
+.cm-add .btn { flex: 0 0 auto; }

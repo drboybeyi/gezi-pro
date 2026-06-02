@@ -5,9 +5,9 @@
 import { googleMapsDirections, appleMapsDirections, googleMapsPlace } from '../utils/maps.js';
 import { removePhoto, updatePhoto } from '../photos.js';
 import { showToast } from './toast.js';
-import { CATEGORIES, catOf } from '../categories.js';
+import { getCategories, catOf } from '../categories.js';
 
-const catOptions = (selected) => CATEGORIES.map(c =>
+const catOptions = (selected) => getCategories().map(c =>
   `<option value="${c.key}"${c.key === selected ? ' selected' : ''}>${c.emoji} ${c.label}</option>`).join('');
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>

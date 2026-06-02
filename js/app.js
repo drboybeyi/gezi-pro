@@ -9,7 +9,9 @@
 
 import { setState, subscribe } from './state.js';
 import { getAllPhotos } from './idb.js';
+import { loadCategories } from './categories.js';
 import { openPhotoForm } from './components/photoForm.js';
+import { openCategoryManager } from './components/categoryManager.js';
 
 import { GaleriView } from './views/galeri.js';
 import { HaritaView } from './views/harita.js';
@@ -105,6 +107,9 @@ document.body.appendChild(_fileInput);
 
 document.getElementById('fabBtn').addEventListener('click', () => _fileInput.click());
 
+// --- Kategori yönetimi (header) ---
+document.getElementById('catBtn')?.addEventListener('click', openCategoryManager);
+
 _fileInput.addEventListener('change', () => {
   const file = _fileInput.files?.[0];
   if (file) openPhotoForm(file);
@@ -139,6 +144,7 @@ if ('serviceWorker' in navigator) {
 
 /** Auth'suz boot: offline-first, tek kullanıcı. Firebase'e dokunmaz. */
 async function bootLocal() {
+  await loadCategories();                // kategori cache'i (senkron catOf için) — render'dan önce
   const photos = await getAllPhotos();   // IndexedDB source-of-truth
   setState('photos', photos);
   setState('user', { uid: 'local', email: null });
