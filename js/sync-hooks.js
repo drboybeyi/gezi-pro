@@ -12,5 +12,7 @@ export function clearSyncHooks()    { _hooks = null; }
 
 export function onPhotoChanged(rec)   { try { _hooks?.photoChanged?.(rec); }   catch (e) { console.warn('[sync] photoChanged', e); } }
 export function onPhotoDeleted(id)    { try { _hooks?.photoDeleted?.(id); }    catch (e) { console.warn('[sync] photoDeleted', e); } }
+/** Bir yerin belirli fotoğraf dosyalarını Storage'dan sil (giriş varsa). */
+export function onPhotoFilesDeleted(placeId, photoIds) { try { _hooks?.photoFilesDeleted?.(placeId, photoIds); } catch (e) { console.warn('[sync] photoFilesDeleted', e); } }
 export function onCategoryChanged(c)  { try { _hooks?.categoryChanged?.(c); }  catch (e) { console.warn('[sync] categoryChanged', e); } }
 export function onCategoryDeleted(k)  { try { _hooks?.categoryDeleted?.(k); }  catch (e) { console.warn('[sync] categoryDeleted', e); } }

@@ -4,6 +4,7 @@
    Sola/sağa geç, kapat. */
 
 import { getOriginal } from '../idb.js';
+import { fetchRemoteOriginal } from '../originals-bridge.js';
 
 let _el = null;
 let _photos = [];
@@ -35,7 +36,13 @@ async function show(i) {
   nav.style.display = nav2.style.display = multi ? '' : 'none';
   try {
     const blob = await getOriginal(ph.id);     // tam çözünürlük (yerel)
-    if (blob && _photos[_idx] === ph) { _url = URL.createObjectURL(blob); img.src = _url; }
+    if (blob) {
+      if (_photos[_idx] === ph) { _url = URL.createObjectURL(blob); img.src = _url; }
+    } else if (ph.storagePath) {
+      // Yerel orijinal yok (ör. başka cihazdan inmiş) -> Storage'dan indir.
+      const url = await fetchRemoteOriginal(ph.storagePath);
+      if (url && _photos[_idx] === ph) img.src = url;
+    }
   } catch (e) { console.warn('[viewer] orijinal yüklenemedi', e); }
 }
 

@@ -8,7 +8,7 @@ import { setState } from './state.js';
 import { readExif, getDeviceLocation } from './utils/exif.js';
 import { makeThumbnail } from './utils/thumbnail.js';
 import { DEFAULT_CATEGORY } from './categories.js';
-import { onPhotoChanged, onPhotoDeleted } from './sync-hooks.js';
+import { onPhotoChanged, onPhotoDeleted, onPhotoFilesDeleted } from './sync-hooks.js';
 
 function uid() {
   return (crypto.randomUUID?.() ||
@@ -144,8 +144,9 @@ export async function removePhotoFromPlace(placeId, photoId) {
   const place = await getPhoto(placeId);
   if (!place) return null;
   const remaining = (place.photos || []).filter(p => p.id !== photoId);
-  await deleteOriginal(photoId);          // local orijinal (B2: Storage'dan da)
-  if (!remaining.length) { await removePhoto(placeId); return null; }  // son foto -> yeri sil
+  if (!remaining.length) { await removePhoto(placeId); return null; }  // son foto -> tüm temizlik removePhoto'da
+  await deleteOriginal(photoId);          // yerel orijinal
+  onPhotoFilesDeleted(placeId, [photoId]); // Storage objesi
   const next = { ...place, photos: remaining, updatedAt: Date.now() };
   await putPhoto(next);
   await refresh();
@@ -154,15 +155,25 @@ export async function removePhotoFromPlace(placeId, photoId) {
 }
 
 export async function removePhoto(id) {
-  await deletePhoto(id);
+  const place = await getPhoto(id);
+  const photoIds = (place?.photos || []).map(p => p.id);
+  for (const pid of photoIds) await deleteOriginal(pid);   // yerel orijinaller (foto id'leri)
+  await deletePhoto(id);                                    // kayıt (+ varsa legacy orig)
   await refresh();
-  onPhotoDeleted(id);                      // buluta tombstone
+  onPhotoDeleted(id);                                       // RTDB tombstone
+  if (photoIds.length) onPhotoFilesDeleted(id, photoIds);   // Storage objeleri
 }
 
-/** Toplu silme: hepsini sil, TEK refresh, her biri için tombstone push. */
+/** Toplu silme: hepsini sil, TEK refresh, her biri için tombstone + Storage temizliği. */
 export async function removePhotos(ids) {
   if (!ids?.length) return;
-  for (const id of ids) await deletePhoto(id);
+  for (const id of ids) {
+    const place = await getPhoto(id);
+    const photoIds = (place?.photos || []).map(p => p.id);
+    for (const pid of photoIds) await deleteOriginal(pid);
+    await deletePhoto(id);
+    if (photoIds.length) onPhotoFilesDeleted(id, photoIds);
+  }
   await refresh();
   ids.forEach(id => onPhotoDeleted(id));
 }

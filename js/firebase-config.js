@@ -1,13 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import {
   getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
-// NOT: Storage KULLANILMIYOR (ücretsiz planda kalmak için). Fotoğraf
-// orijinalleri buluta yüklenmez; yalnızca metadata + thumbnail (RTDB).
+// Storage: tam çözünürlüklü orijinaller users/{uid}/{placeId}/{photoId}'e yüklenir
+// (Blaze plan). Thumbnail RTDB'de kalır. Senkron/yükleme yalnız giriş sonrası.
 
 // ============================================================
 // Gezi-Pro Firebase (proje: gezi-pro-97d0d, RTDB: europe-west1).
@@ -25,8 +26,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db   = getDatabase(app);
-export const auth = getAuth(app);
+export const db      = getDatabase(app);
+export const auth    = getAuth(app);
+export const storage = getStorage(app);
 
 // Oturum cihazda kalsın (reload sonrası giriş sürsün) — best-effort.
 setPersistence(auth, browserLocalPersistence).catch(() => {});

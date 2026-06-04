@@ -10,18 +10,22 @@
      3) sync-hooks kancaları (local değişiklik -> uzak push).
    stopSync(): dinleyicileri bırak + kancaları temizle. */
 
-import { db } from './firebase-config.js';
+import { db, storage } from './firebase-config.js';
 import {
   ref, get, set, update,
   onChildAdded, onChildChanged, onChildRemoved, onValue, off,
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js';
 import {
-  getAllPhotos, bulkPut, putPhoto, deletePhoto, getPhoto,
+  ref as sRef, uploadBytes, getDownloadURL, deleteObject,
+} from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js';
+import {
+  getAllPhotos, bulkPut, putPhoto, deletePhoto, getPhoto, getOriginal,
   getAllCategories, bulkPutCategories, putCategory, deleteCategoryRecord,
 } from './idb.js';
 import { setState } from './state.js';
 import { loadCategories, DEFAULT_CATEGORY } from './categories.js';
 import { setSyncHooks, clearSyncHooks } from './sync-hooks.js';
+import { setOriginalDownloader, clearOriginalDownloader } from './originals-bridge.js';
 
 let _uid = null;
 let _unsubs = [];
@@ -218,6 +222,59 @@ async function reconcilePhotos() {
   setState('photos', await getAllPhotos());
 }
 
+// ---- Storage: tam çözünürlüklü orijinaller ----
+
+function storagePathFor(placeId, photoId) { return `users/${_uid}/${placeId}/${photoId}`; }
+
+/** Bir yerin verilen foto dosyalarını Storage'dan sil (yoksa sessiz geç). */
+async function deleteStorageFiles(placeId, photoIds) {
+  if (!_uid || !photoIds?.length) return;
+  for (const pid of photoIds) {
+    try { await deleteObject(sRef(storage, storagePathFor(placeId, pid))); }
+    catch (e) { if (e?.code !== 'storage/object-not-found') console.warn('[storage] sil', e); }
+  }
+}
+
+/** storagePath -> indirme URL'i (photoViewer için; <img src> CORS gerektirmez). */
+async function downloadOriginal(storagePath) {
+  return getDownloadURL(sRef(storage, storagePath));
+}
+
+let _uploading = false, _uploadAgain = false, _upT = null;
+function scheduleUpload() { clearTimeout(_upT); _upT = setTimeout(runUpload, 400); }
+async function runUpload() {
+  if (!_uid || _uploading) { if (_uploading) _uploadAgain = true; return; }
+  _uploading = true;
+  try { await uploadPendingOriginals(); }
+  catch (e) { console.warn('[storage] yükleme turu', e); }
+  finally { _uploading = false; if (_uploadAgain) { _uploadAgain = false; scheduleUpload(); } }
+}
+
+/** storagePath'i olmayan ama yerel orijinali bulunan tüm fotoğrafları yükle;
+    yükleyince storagePath'i kayda işle + RTDB'ye yansıt. */
+async function uploadPendingOriginals() {
+  if (!_uid) return;
+  let uploaded = 0;
+  const places = await getAllPhotos();
+  for (const place of places) {
+    let changed = false;
+    for (const ph of place.photos || []) {
+      if (ph.storagePath) continue;
+      const blob = await getOriginal(ph.id);
+      if (!blob) continue;                       // yerel orijinal yok -> atla
+      const path = storagePathFor(place.id, ph.id);
+      try { await uploadBytes(sRef(storage, path), blob); ph.storagePath = path; changed = true; uploaded++; }
+      catch (e) { console.warn('[storage] yükle', path, e); }
+    }
+    if (changed) {
+      const next = { ...place, updatedAt: Date.now() };
+      await putPhoto(next);
+      pushPhoto(next);                            // storagePath'leri RTDB'ye yansıt
+    }
+  }
+  if (uploaded) console.log(`[storage] ${uploaded} orijinal yüklendi`);
+}
+
 // ---- Yaşam döngüsü ----
 
 function attachLive() {
@@ -241,17 +298,20 @@ function detachLive() {
 export async function startSync() {
   if (!_uid) return;
   setSyncHooks({
-    photoChanged:    pushPhoto,
-    photoDeleted:    pushPhotoDelete,
-    categoryChanged: pushCategory,
-    categoryDeleted: pushCategoryDelete,
+    photoChanged:      (p) => { pushPhoto(p); scheduleUpload(); },  // thumb -> RTDB, orijinal -> Storage
+    photoDeleted:      pushPhotoDelete,
+    categoryChanged:   pushCategory,
+    categoryDeleted:   pushCategoryDelete,
+    photoFilesDeleted: deleteStorageFiles,
   });
+  setOriginalDownloader(downloadOriginal);   // viewer yerel orijinal yoksa Storage'dan indirir
   _syncing = true;
   startConnMonitor();   // bağlantı durumunu sürekli izle (online/offline)
   reflectSync();        // -> 'syncing'
   try {
     await reconcileCategories();   // önce kategoriler (catOf bilsin), sonra fotoğraflar
     await reconcilePhotos();
+    scheduleUpload();              // girişte bekleyen orijinalleri (storagePath'siz) yükle
   } finally {
     // Reconcile çevrimdışı başarısız olsa bile canlı dinleyiciler bağlansın
     // (bağlantı dönünce uzak değişiklikler akar).
@@ -265,6 +325,8 @@ export function stopSync() {
   detachLive();
   stopConnMonitor();
   clearSyncHooks();
+  clearOriginalDownloader();
+  clearTimeout(_upT); _uploading = false; _uploadAgain = false;
   _syncing = false;
   _connected = false;
   setState('sync', null);   // çıkışta rozet gizlenir

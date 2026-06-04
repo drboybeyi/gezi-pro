@@ -2,7 +2,7 @@
    Offline-first app shell. Veri katmanı IndexedDB'de (bkz. js/idb.js);
    bu SW yalnızca statik kabuğu (HTML/CSS/JS + Leaflet) önbelleğe alır. */
 
-const VERSION    = 'gezi-pro-v18';
+const VERSION    = 'gezi-pro-v19';
 const SHELL_CACHE = `${VERSION}-shell`;
 const CDN_CACHE   = `${VERSION}-cdn`;
 
@@ -21,6 +21,7 @@ const SHELL = [
   './js/photos.js',
   './js/categories.js',
   './js/sync-hooks.js',
+  './js/originals-bridge.js',
   './js/components/toast.js',
   './js/components/sheet.js',
   './js/components/photoForm.js',
