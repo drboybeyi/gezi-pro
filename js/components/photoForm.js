@@ -100,12 +100,14 @@ export async function openPhotoForm(file) {
     draft = await buildDraft(file);
   } catch (err) {
     console.error('[photoForm] beklenmedik buildDraft hatası:', err);
+    const fid = (crypto.randomUUID?.() || `p${Date.now()}`);
     draft = {
       record: {
-        id: (crypto.randomUUID?.() || `p${Date.now()}`),
+        id: fid,
         title: '', note: '', category: DEFAULT_CATEGORY, lat: null, lng: null, locSource: 'none',
-        locError: 'unknown', thumb: null, w: 0, h: 0,
+        locError: 'unknown',
         takenAt: file.lastModified || Date.now(), createdAt: Date.now(), syncState: 'local',
+        photos: [{ id: fid, thumb: null, w: 0, h: 0, takenAt: file.lastModified || Date.now(), createdAt: Date.now() }],
       },
       original: file,
     };

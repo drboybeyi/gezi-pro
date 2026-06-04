@@ -13,6 +13,8 @@ const STORE      = 'photos';
 const ORIG       = 'originals';
 const CATS       = 'categories';
 
+import { normalizePlace } from './utils/place.js';
+
 let _dbPromise = null;
 
 export function openDB() {
@@ -58,12 +60,33 @@ function reqToPromise(request) {
 export async function getAllPhotos() {
   const s = await store(STORE, 'readonly');
   const all = await reqToPromise(s.getAll());
-  return all.sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0)); // en yeni üstte
+  // Defansif normalize: eski-şekil / uzaktan inen eski kayıtlar da photos[] görsün.
+  return all.map(normalizePlace).sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0)); // en yeni üstte
 }
 
 export async function getPhoto(id) {
   const s = await store(STORE, 'readonly');
-  return reqToPromise(s.get(id));
+  const rec = await reqToPromise(s.get(id));
+  return rec ? normalizePlace(rec) : rec;
+}
+
+/** Bir kez: eski tek-fotoğraflı kayıtları çoklu-foto (photos[]) şekline taşı.
+    Idempotent: photos[] olanlar atlanır. @returns {Promise<number>} taşınan sayı. */
+export async function migratePlacesShape() {
+  const idb = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = idb.transaction(STORE, 'readwrite');
+    const s = t.objectStore(STORE);
+    let n = 0;
+    s.openCursor().onsuccess = (e) => {
+      const cur = e.target.result;
+      if (!cur) return;
+      if (!Array.isArray(cur.value.photos)) { cur.update(normalizePlace(cur.value)); n++; }
+      cur.continue();
+    };
+    t.oncomplete = () => resolve(n);
+    t.onerror    = () => reject(t.error);
+  });
 }
 
 export async function putPhoto(photo) {

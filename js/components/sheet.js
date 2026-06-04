@@ -6,6 +6,7 @@ import { googleMapsDirections, appleMapsDirections, googleMapsPlace } from '../u
 import { removePhoto, updatePhoto } from '../photos.js';
 import { showToast } from './toast.js';
 import { getCategories, catOf } from '../categories.js';
+import { coverThumb } from '../utils/place.js';
 
 const catOptions = (selected) => getCategories().map(c =>
   `<option value="${c.key}"${c.key === selected ? ' selected' : ''}>${c.emoji} ${c.label}</option>`).join('');
@@ -32,12 +33,13 @@ export function openDetailSheet(photo) {
   const hasGps = Number.isFinite(photo?.lat) && Number.isFinite(photo?.lng);
   const title = esc(photo?.title) || 'İsimsiz yer';
   const cat = catOf(photo?.category);
+  const cover = coverThumb(photo);
 
   root.innerHTML = `
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
-      ${photo?.thumb
-        ? `<img class="sheet-photo" src="${photo.thumb}" alt="${title}">`
+      ${cover
+        ? `<img class="sheet-photo" src="${cover}" alt="${title}">`
         : `<div class="sheet-photo sheet-photo--empty">🏞️</div>`}
       <div class="sheet-body">
         <h2 class="sheet-title">

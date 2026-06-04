@@ -70,20 +70,28 @@ export async function buildDraft(file) {
   // 3) Thumbnail — 10sn timeout. Üretilemezse thumb'suz ama kaydedilebilir.
   const thumb = await withTimeout(makeThumbnail(file), 10000, null, 'THUMB');
   const takenAt = exif.takenAt || file.lastModified || Date.now();
+  const now = Date.now();
+  const id = uid();
 
+  // Çoklu-foto modeli: konum/isim/kategori yer düzeyinde; thumb ilk fotoda.
+  // (Tek foto: foto id = yer id -> orijinal blob anahtarı tutarlı.)
   const record = {
-    id: uid(),
+    id,
     title: '',
     note: '',
     category: DEFAULT_CATEGORY,   // formdaki seçici üzerine yazar
     lat, lng, locSource, locError,
-    thumb: thumb?.dataUrl || null,
-    w: thumb?.width || 0, h: thumb?.height || 0,
     takenAt,
-    createdAt: Date.now(),
+    createdAt: now,
     syncState: 'local',
+    photos: [{
+      id,
+      thumb: thumb?.dataUrl || null,
+      w: thumb?.width || 0, h: thumb?.height || 0,
+      takenAt, createdAt: now,
+    }],
   };
-  console.log(`[photos] taslak hazır: locSource=${locSource} locError=${locError} thumb=${!!record.thumb}`);
+  console.log(`[photos] taslak hazır: locSource=${locSource} locError=${locError} thumb=${!!record.photos[0].thumb}`);
   return { record, original: file };
 }
 

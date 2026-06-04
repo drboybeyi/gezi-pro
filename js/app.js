@@ -6,7 +6,7 @@
    (localStorage bayrağı) boot'ta oturum sessizce sürdürülür. */
 
 import { setState, subscribe } from './state.js';
-import { getAllPhotos } from './idb.js';
+import { getAllPhotos, migratePlacesShape } from './idb.js';
 import { loadCategories } from './categories.js';
 import { openPhotoForm } from './components/photoForm.js';
 import { openCategoryManager } from './components/categoryManager.js';
@@ -175,6 +175,8 @@ if ('serviceWorker' in navigator) {
 /** Offline-first boot: her zaman local. Firebase'e dokunmaz. */
 async function bootLocal() {
   await loadCategories();                // kategori cache'i (senkron catOf için) — render'dan önce
+  const moved = await migratePlacesShape();   // eski tek-foto kayıtları -> photos[] (idempotent)
+  if (moved) console.log(`[migrate] ${moved} kayıt çoklu-foto modeline taşındı`);
   const photos = await getAllPhotos();   // IndexedDB source-of-truth
   setState('photos', photos);
   setState('user', { uid: 'local', email: null });

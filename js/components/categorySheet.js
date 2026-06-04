@@ -6,6 +6,7 @@
 import { getState, subscribe } from '../state.js';
 import { catOf } from '../categories.js';
 import { placeMatches } from '../utils/search.js';
+import { coverThumb } from '../utils/place.js';
 import { openDetailSheet } from './sheet.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
@@ -47,10 +48,11 @@ function renderGrid() {
   }
   grid.innerHTML = photos.map(p => {
     const t = esc(p.title) || 'Fotoğraf';
+    const cover = coverThumb(p);
     return `
       <button class="gallery-cell" data-id="${p.id}" aria-label="${t}">
-        ${p.thumb
-          ? `<img src="${p.thumb}" alt="${t}" loading="lazy">`
+        ${cover
+          ? `<img src="${cover}" alt="${t}" loading="lazy">`
           : `<span class="gallery-cell--empty">🏞️</span>`}
         ${Number.isFinite(p.lat) ? `<span class="gallery-pin">📍</span>` : ''}
       </button>`;
