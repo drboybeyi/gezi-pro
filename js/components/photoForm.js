@@ -52,14 +52,19 @@ function close() {
   setTimeout(() => { if (_root) { _root.style.display = 'none'; _root.innerHTML = ''; } }, 220);
 }
 
-export async function openPhotoForm(file) {
+export async function openPhotoForm(files) {
+  const list = Array.isArray(files) ? files : [files];
+  const first = list[0];
   const root = ensureRoot();
-  const objectUrl = URL.createObjectURL(file);
+  const objectUrl = URL.createObjectURL(first);
 
   root.innerHTML = `
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
-      <img class="sheet-photo" src="${objectUrl}" alt="önizleme">
+      <div class="pf-preview">
+        <img class="sheet-photo" src="${objectUrl}" alt="önizleme">
+        ${list.length > 1 ? `<span class="pf-count">📷 ${list.length} foto</span>` : ''}
+      </div>
       <div class="sheet-body">
         <div id="pfLoc" class="pf-loc">⏳ Konum okunuyor…</div>
         <div class="form-group">
@@ -97,19 +102,23 @@ export async function openPhotoForm(file) {
   // yine de beklenmedik bir hatada formu kilitlememek için minimal taslağa düş.
   let draft;
   try {
-    draft = await buildDraft(file);
+    draft = await buildDraft(list);
   } catch (err) {
     console.error('[photoForm] beklenmedik buildDraft hatası:', err);
-    const fid = (crypto.randomUUID?.() || `p${Date.now()}`);
+    const now = Date.now();
+    const photos = list.map(f => ({
+      id: (crypto.randomUUID?.() || `p${now}${Math.random().toString(16).slice(2,8)}`),
+      thumb: null, w: 0, h: 0, takenAt: f.lastModified || now, createdAt: now,
+    }));
     draft = {
       record: {
-        id: fid,
+        id: (crypto.randomUUID?.() || `p${now}`),
         title: '', note: '', category: DEFAULT_CATEGORY, lat: null, lng: null, locSource: 'none',
         locError: 'unknown',
-        takenAt: file.lastModified || Date.now(), createdAt: Date.now(), syncState: 'local',
-        photos: [{ id: fid, thumb: null, w: 0, h: 0, takenAt: file.lastModified || Date.now(), createdAt: Date.now() }],
+        takenAt: first.lastModified || now, createdAt: now, syncState: 'local',
+        photos,
       },
-      original: file,
+      originals: photos.map((p, i) => ({ id: p.id, blob: list[i] })),
     };
   }
 
@@ -127,10 +136,11 @@ export async function openPhotoForm(file) {
     draft.record.note     = noteEl.value.trim();
     draft.record.category = catEl.value || DEFAULT_CATEGORY;
     try {
-      await savePhoto(draft.record, draft.original);
+      await savePhoto(draft.record, draft.originals);
       URL.revokeObjectURL(objectUrl);
       close();
-      showToast('Fotoğraf eklendi 📷', 'success');
+      const n = draft.record.photos?.length || 1;
+      showToast(n > 1 ? `${n} fotoğraf eklendi 📷` : 'Fotoğraf eklendi 📷', 'success');
     } catch (err) {
       console.error('[photoForm] kayıt hatası', err);
       saveEl.disabled = false;

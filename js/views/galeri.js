@@ -10,7 +10,7 @@ import { showToast } from '../components/toast.js';
 import { catOf } from '../categories.js';
 import { removePhotos } from '../photos.js';
 import { normQuery, placeMatches } from '../utils/search.js';
-import { coverThumb } from '../utils/place.js';
+import { coverThumb, photoCount } from '../utils/place.js';
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -181,14 +181,16 @@ export class GaleriView {
       const cat = catOf(p.category);
       const sel = this._selected.has(p.id);
       const cover = coverThumb(p);
+      const n = photoCount(p);
       return `
       <button class="gallery-cell${this._selectMode ? ' gallery-cell--select' : ''}${sel ? ' gallery-cell--selected' : ''}"
-              data-id="${p.id}" aria-label="${t} — ${cat.label}" aria-pressed="${sel}">
+              data-id="${p.id}" aria-label="${t} — ${cat.label}${n > 1 ? ` — ${n} foto` : ''}" aria-pressed="${sel}">
         ${cover
           ? `<img src="${cover}" alt="${t}" loading="lazy">`
           : `<span class="gallery-cell--empty">🏞️</span>`}
         <span class="cat-badge" style="background:${cat.color};color:${cat.fg}"
               title="${cat.label}">${cat.emoji}</span>
+        ${n > 1 ? `<span class="count-badge" title="${n} foto">🖼 ${n}</span>` : ''}
         ${Number.isFinite(p.lat) ? `<span class="gallery-pin">📍</span>` : ''}
         ${this._selectMode ? `<span class="cell-check">${sel ? '✓' : ''}</span>` : ''}
       </button>`;

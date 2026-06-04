@@ -135,6 +135,11 @@ export async function getOriginal(id) {
   return rec?.blob || null;
 }
 
+export async function deleteOriginal(id) {
+  const s = await store(ORIG, 'readwrite');
+  return reqToPromise(s.delete(id));
+}
+
 // --- categories (kullanıcı yönetimli) ---
 
 export async function getAllCategories() {

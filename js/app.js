@@ -125,6 +125,7 @@ document.getElementById('syncBadge')?.addEventListener('click', (e) => {
 const _fileInput = document.createElement('input');
 _fileInput.type = 'file';
 _fileInput.accept = 'image/*';   // mobilde galeri/kamera seçimi sunar
+_fileInput.multiple = true;      // çoklu foto: tek yere birden çok foto
 _fileInput.style.display = 'none';
 document.body.appendChild(_fileInput);
 
@@ -141,8 +142,8 @@ document.getElementById('authBtn')?.addEventListener('click', () => {
 });
 
 _fileInput.addEventListener('change', () => {
-  const file = _fileInput.files?.[0];
-  if (file) openPhotoForm(file);
+  const files = Array.from(_fileInput.files || []);
+  if (files.length) openPhotoForm(files);
   _fileInput.value = '';   // aynı dosya tekrar seçilebilsin
 });
 
