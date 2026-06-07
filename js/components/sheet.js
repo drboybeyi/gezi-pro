@@ -21,6 +21,7 @@ let _el = null;
 let _place = null;
 let _unsub = null;
 let _addInput = null;
+let _editing = false;   // düzenleme modunda mı? (uzak güncelleme body'yi ezmesin)
 
 function ensureRoot() {
   if (_el) return _el;
@@ -101,87 +102,141 @@ async function onDeletePhoto(pid) {
   }
 }
 
-export function openDetailSheet(place) {
-  _place = place;
-  const root = ensureRoot();
+/** Yer detayının görüntüleme (salt-okunur) gövdesi. */
+function displayBodyHTML(place) {
   const hasGps = Number.isFinite(place?.lat) && Number.isFinite(place?.lng);
   const title = esc(place?.title) || 'İsimsiz yer';
   const cat = catOf(place?.category);
   const n = photoCount(place);
+  return `
+    <h2 class="sheet-title">
+      <span class="cat-badge cat-badge--inline" style="background:${cat.color};color:${cat.fg}">${cat.emoji}</span>
+      ${title}${n > 1 ? ` <span class="sheet-photocount">🖼 ${n}</span>` : ''}
+    </h2>
+    ${place?.note ? `<p class="sheet-note">${esc(place.note)}</p>` : ''}
+    ${hasGps ? `
+      <div class="sheet-coords">📍 ${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}</div>
+      <div class="sheet-actions">
+        <a class="btn btn-primary" target="_blank" rel="noopener"
+           href="${googleMapsDirections(place.lat, place.lng, place.title)}">Google Maps yol tarifi</a>
+        <a class="btn btn-secondary" target="_blank" rel="noopener"
+           href="${appleMapsDirections(place.lat, place.lng, place.title)}">Apple Maps yol tarifi</a>
+        <a class="btn btn-ghost" target="_blank" rel="noopener"
+           href="${googleMapsPlace(place.lat, place.lng)}">Haritada göster</a>
+      </div>` : `<div class="sheet-coords sheet-coords--muted">Konum bilgisi yok</div>`}
+    <button class="btn btn-secondary btn-full" id="sheetEdit">✏️ Düzenle</button>
+    <button class="btn btn-danger btn-full" id="sheetDelete">Yeri sil</button>
+  `;
+}
+
+/** Yalnız ad, not ve kategori düzenlenir; konum ve fotoğraflara dokunulmaz. */
+function editBodyHTML(place) {
+  const cat = catOf(place?.category);
+  return `
+    <div class="form-group">
+      <label class="form-label" for="editTitle">Yer adı</label>
+      <input id="editTitle" class="form-control" type="text" maxlength="120"
+             placeholder="İsimsiz yer" value="${esc(place?.title)}">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="editNote">Not / açıklama</label>
+      <textarea id="editNote" class="form-control" rows="3"
+                placeholder="Not ekle…">${esc(place?.note)}</textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="editCat">Kategori</label>
+      <select id="editCat" class="form-control">${catOptions(cat.key)}</select>
+    </div>
+    <div class="sheet-actions sheet-actions--row">
+      <button class="btn btn-ghost" id="editCancel">İptal</button>
+      <button class="btn btn-primary" id="editSave">Kaydet</button>
+    </div>
+  `;
+}
+
+/** Görüntüleme gövdesini bas + olaylarını bağla. */
+function renderBody() {
+  const body = _el?.querySelector('.sheet-body');
+  if (!body || !_place) return;
+  _editing = false;
+  body.innerHTML = displayBodyHTML(_place);
+  body.querySelector('#sheetEdit')?.addEventListener('click', enterEditMode);
+  body.querySelector('#sheetDelete')?.addEventListener('click', onDeletePlace);
+}
+
+/** Düzenleme formuna geç + olaylarını bağla. */
+function enterEditMode() {
+  const body = _el?.querySelector('.sheet-body');
+  if (!body || !_place) return;
+  _editing = true;
+  body.innerHTML = editBodyHTML(_place);
+  body.querySelector('#editCancel')?.addEventListener('click', renderBody);
+  body.querySelector('#editSave')?.addEventListener('click', onSaveEdit);
+  body.querySelector('#editTitle')?.focus();
+}
+
+async function onSaveEdit() {
+  if (!_place) return;
+  const body = _el.querySelector('.sheet-body');
+  const title = body.querySelector('#editTitle')?.value.trim() || '';
+  const note  = body.querySelector('#editNote')?.value.trim() || '';
+  const category = body.querySelector('#editCat')?.value || _place.category;
+  try {
+    await updatePhoto(_place.id, { title, note, category });   // IndexedDB + Firebase (LWW)
+    _place = { ..._place, title, note, category };
+    renderBody();
+    showToast('Kaydedildi ✓', 'success');
+  } catch (err) {
+    console.error('[sheet] düzenleme kaydı hatası', err);
+    showToast('Kaydedilemedi', 'danger');
+  }
+}
+
+async function onDeletePlace() {
+  if (!confirm('Bu yer (tüm fotoğraflarıyla) silinsin mi?')) return;
+  try {
+    await removePhoto(_place.id);
+    closeSheet();
+    showToast('Yer silindi', 'info');
+  } catch (err) {
+    console.error('[sheet] silme hatası', err);
+    showToast('Silinemedi', 'danger');
+  }
+}
+
+export function openDetailSheet(place) {
+  _place = place;
+  const root = ensureRoot();
 
   root.innerHTML = `
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
       <div class="photo-strip" id="sheetStrip">${stripHTML(place)}</div>
-      <div class="sheet-body">
-        <h2 class="sheet-title">
-          <span class="cat-badge cat-badge--inline" style="background:${cat.color};color:${cat.fg}">${cat.emoji}</span>
-          ${title}${n > 1 ? ` <span class="sheet-photocount">🖼 ${n}</span>` : ''}
-        </h2>
-        ${place?.note ? `<p class="sheet-note">${esc(place.note)}</p>` : ''}
-        <div class="form-group sheet-cat">
-          <label class="form-label">Kategori</label>
-          <select id="sheetCat" class="form-control">${catOptions(cat.key)}</select>
-        </div>
-        ${hasGps ? `
-          <div class="sheet-coords">📍 ${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}</div>
-          <div class="sheet-actions">
-            <a class="btn btn-primary" target="_blank" rel="noopener"
-               href="${googleMapsDirections(place.lat, place.lng, place.title)}">Google Maps yol tarifi</a>
-            <a class="btn btn-secondary" target="_blank" rel="noopener"
-               href="${appleMapsDirections(place.lat, place.lng, place.title)}">Apple Maps yol tarifi</a>
-            <a class="btn btn-ghost" target="_blank" rel="noopener"
-               href="${googleMapsPlace(place.lat, place.lng)}">Haritada göster</a>
-          </div>` : `<div class="sheet-coords sheet-coords--muted">Konum bilgisi yok</div>`}
-        <button class="btn btn-danger btn-full" id="sheetDelete">Yeri sil</button>
-      </div>
+      <div class="sheet-body"></div>
     </div>
   `;
   root.style.display = 'flex';
   requestAnimationFrame(() => root.classList.add('open'));
 
   wireStrip();
-
-  root.querySelector('#sheetCat').addEventListener('change', async (e) => {
-    const newCat = e.target.value;
-    try {
-      await updatePhoto(_place.id, { category: newCat });
-      _place = { ..._place, category: newCat };
-      const c = catOf(newCat);
-      const badge = root.querySelector('.cat-badge--inline');
-      if (badge) { badge.style.background = c.color; badge.style.color = c.fg; badge.textContent = c.emoji; }
-      showToast(`Kategori: ${c.label}`, 'info');
-    } catch (err) {
-      console.error('[sheet] kategori güncelleme hatası', err);
-      showToast('Kategori değiştirilemedi', 'danger');
-    }
-  });
-
-  root.querySelector('#sheetDelete').addEventListener('click', async () => {
-    if (!confirm('Bu yer (tüm fotoğraflarıyla) silinsin mi?')) return;
-    try {
-      await removePhoto(_place.id);
-      closeSheet();
-      showToast('Yer silindi', 'info');
-    } catch (err) {
-      console.error('[sheet] silme hatası', err);
-      showToast('Silinemedi', 'danger');
-    }
-  });
+  renderBody();
 
   // Açıkken foto ekle/sil olursa şeridi tazele; yer silindiyse kapat.
+  // Düzenleme modundaysak gövdeyi yeniden basma (kullanıcının girdisini ezmemek için).
   _unsub?.();
   _unsub = subscribe('photos', (photos) => {
     const updated = (photos || []).find(p => p.id === _place?.id);
     if (!updated) { closeSheet(); return; }
     _place = updated;
     renderStrip();
+    if (!_editing) renderBody();
   });
 }
 
 export function closeSheet() {
   _unsub?.(); _unsub = null;
   _place = null;
+  _editing = false;
   if (!_el) return;
   _el.classList.remove('open');
   setTimeout(() => { if (_el) _el.style.display = 'none'; }, 220);
