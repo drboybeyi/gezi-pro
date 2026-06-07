@@ -4,7 +4,7 @@
    Ayrıca kategori, not, harita yol tarifi linkleri ve yeri silme. */
 
 import { googleMapsDirections, appleMapsDirections, googleMapsPlace } from '../utils/maps.js';
-import { removePhoto, updatePhoto, addPhotosToPlace, removePhotoFromPlace } from '../photos.js';
+import { removePhoto, updatePhoto, addPhotosToPlace, removePhotoFromPlace, toggleFavorite } from '../photos.js';
 import { showToast } from './toast.js';
 import { getCategories, catOf } from '../categories.js';
 import { photoCount } from '../utils/place.js';
@@ -108,11 +108,16 @@ function displayBodyHTML(place) {
   const title = esc(place?.title) || 'İsimsiz yer';
   const cat = catOf(place?.category);
   const n = photoCount(place);
+  const fav = !!place?.favorite;
   return `
-    <h2 class="sheet-title">
-      <span class="cat-badge cat-badge--inline" style="background:${cat.color};color:${cat.fg}">${cat.emoji}</span>
-      ${title}${n > 1 ? ` <span class="sheet-photocount">🖼 ${n}</span>` : ''}
-    </h2>
+    <div class="sheet-titlerow">
+      <h2 class="sheet-title">
+        <span class="cat-badge cat-badge--inline" style="background:${cat.color};color:${cat.fg}">${cat.emoji}</span>
+        ${title}${n > 1 ? ` <span class="sheet-photocount">🖼 ${n}</span>` : ''}
+      </h2>
+      <button class="fav-toggle${fav ? ' fav-toggle--on' : ''}" id="sheetFav"
+              aria-pressed="${fav}" aria-label="Favori" title="Favori">${fav ? '★' : '☆'}</button>
+    </div>
     ${place?.note ? `<p class="sheet-note">${esc(place.note)}</p>` : ''}
     ${hasGps ? `
       <div class="sheet-coords">📍 ${place.lat.toFixed(5)}, ${place.lng.toFixed(5)}</div>
@@ -160,8 +165,27 @@ function renderBody() {
   if (!body || !_place) return;
   _editing = false;
   body.innerHTML = displayBodyHTML(_place);
+  body.querySelector('#sheetFav')?.addEventListener('click', onToggleFav);
   body.querySelector('#sheetEdit')?.addEventListener('click', enterEditMode);
   body.querySelector('#sheetDelete')?.addEventListener('click', onDeletePlace);
+}
+
+async function onToggleFav() {
+  if (!_place) return;
+  try {
+    const fav = await toggleFavorite(_place.id);   // IndexedDB + Firebase; subscribe gövdeyi tazeler
+    _place = { ..._place, favorite: fav };
+    const btn = _el?.querySelector('#sheetFav');
+    if (btn) {
+      btn.classList.toggle('fav-toggle--on', fav);
+      btn.setAttribute('aria-pressed', String(fav));
+      btn.textContent = fav ? '★' : '☆';
+    }
+    showToast(fav ? 'Favorilere eklendi ★' : 'Favoriden çıkarıldı', 'info');
+  } catch (err) {
+    console.error('[sheet] favori hatası', err);
+    showToast('Favori güncellenemedi', 'danger');
+  }
 }
 
 /** Düzenleme formuna geç + olaylarını bağla. */

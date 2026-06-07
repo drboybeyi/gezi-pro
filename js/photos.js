@@ -96,6 +96,7 @@ export async function buildDraft(files) {
     title: '',
     note: '',
     category: DEFAULT_CATEGORY,   // formdaki seçici üzerine yazar
+    favorite: false,              // yıldız/favori (varsayılan false)
     lat, lng, locSource, locError,
     takenAt: exif.takenAt || first.lastModified || now,
     createdAt: now,
@@ -186,4 +187,14 @@ export async function updatePhoto(id, patch) {
   await putPhoto(next);
   await refresh();
   onPhotoChanged(next);
+}
+
+/** Bir yerin favori durumunu çevir (IndexedDB + Firebase senkron).
+    @returns {Promise<boolean|undefined>} yeni favori durumu (yer yoksa undefined). */
+export async function toggleFavorite(id) {
+  const cur = await getPhoto(id);
+  if (!cur) return;
+  const favorite = !cur.favorite;
+  await updatePhoto(id, { favorite });
+  return favorite;
 }

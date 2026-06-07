@@ -8,7 +8,7 @@ import { getState, subscribe } from '../state.js';
 import { openDetailSheet } from '../components/sheet.js';
 import { showToast } from '../components/toast.js';
 import { catOf } from '../categories.js';
-import { removePhotos } from '../photos.js';
+import { removePhotos, toggleFavorite } from '../photos.js';
 import { normQuery, placeMatches } from '../utils/search.js';
 import { coverThumb, photoCount } from '../utils/place.js';
 
@@ -21,6 +21,7 @@ export class GaleriView {
   constructor() {
     this._unsub = null;
     this._query = '';
+    this._favOnly = false;         // 'sadece favoriler' filtresi
     this._selectMode = false;
     this._selected = new Set();
     this._suppressClick = false;   // long-press sonrası gelen click'i yut
@@ -36,6 +37,8 @@ export class GaleriView {
                  placeholder="Ara — başlık, not, kategori"
                  autocomplete="off" autocapitalize="none" enterkeyhint="search">
           <button class="search-clear" id="galeriSearchClear" aria-label="Aramayı temizle" hidden>✕</button>
+          <button class="search-select fav-filter" id="galeriFavToggle"
+                  aria-label="Sadece favoriler" aria-pressed="false" title="Sadece favoriler">★</button>
           <button class="search-select" id="galeriSelectToggle" aria-label="Seç" title="Seç">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
@@ -67,6 +70,13 @@ export class GaleriView {
     clear?.addEventListener('click', () => {
       input.value = ''; this._query = ''; clear.hidden = true;
       input.focus();
+      this._renderPhotos(getState('photos'));
+    });
+
+    document.getElementById('galeriFavToggle')?.addEventListener('click', (e) => {
+      this._favOnly = !this._favOnly;
+      e.currentTarget.classList.toggle('fav-filter--on', this._favOnly);
+      e.currentTarget.setAttribute('aria-pressed', String(this._favOnly));
       this._renderPhotos(getState('photos'));
     });
 
@@ -109,7 +119,9 @@ export class GaleriView {
   }
 
   _shownPhotos(photos = getState('photos') || []) {
-    return this._query ? photos.filter(p => placeMatches(p, this._query)) : photos;
+    let list = this._query ? photos.filter(p => placeMatches(p, this._query)) : photos;
+    if (this._favOnly) list = list.filter(p => !!p.favorite);
+    return list;
   }
 
   _selectAllShown() {
@@ -166,12 +178,17 @@ export class GaleriView {
     const shown = this._shownPhotos(photos);
 
     if (!shown.length) {
-      grid.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <h3>Eşleşme yok</h3>
-          <p>“${esc(this._query)}” için sonuç bulunamadı.</p>
-        </div>`;
+      grid.innerHTML = this._favOnly && !this._query
+        ? `<div class="empty-state">
+             <div class="empty-icon">★</div>
+             <h3>Favori yok</h3>
+             <p>Bir yerin yıldızına dokunarak favorilere ekle.</p>
+           </div>`
+        : `<div class="empty-state">
+             <div class="empty-icon">🔍</div>
+             <h3>Eşleşme yok</h3>
+             <p>${this._query ? `“${esc(this._query)}” için sonuç bulunamadı.` : 'Favorilerde sonuç yok.'}</p>
+           </div>`;
       return;
     }
 
@@ -192,7 +209,11 @@ export class GaleriView {
               title="${cat.label}">${cat.emoji}</span>
         ${n > 1 ? `<span class="count-badge" title="${n} foto">🖼 ${n}</span>` : ''}
         ${Number.isFinite(p.lat) ? `<span class="gallery-pin">📍</span>` : ''}
-        ${this._selectMode ? `<span class="cell-check">${sel ? '✓' : ''}</span>` : ''}
+        ${this._selectMode
+          ? `<span class="cell-check">${sel ? '✓' : ''}</span>`
+          : `<span class="fav-star${p.favorite ? ' fav-star--on' : ''}" data-fav="${p.id}"
+                   role="button" aria-label="Favori" aria-pressed="${!!p.favorite}"
+                   title="Favori">${p.favorite ? '★' : '☆'}</span>`}
       </button>`;
     }).join('');
 
@@ -204,6 +225,13 @@ export class GaleriView {
         if (this._selectMode) { this._toggle(p.id); return; }
         const photo = (getState('photos') || []).find(x => x.id === p.id);
         if (photo) openDetailSheet(photo);
+      });
+      const star = cell.querySelector('.fav-star');
+      star?.addEventListener('pointerdown', (e) => e.stopPropagation());  // uzun-basış/seçimi tetikleme
+      star?.addEventListener('click', async (e) => {
+        e.stopPropagation();          // hücre açılışını tetikleme
+        try { await toggleFavorite(p.id); }   // subscribe grid'i tazeler
+        catch (err) { console.error('[galeri] favori hatası', err); showToast('Favori güncellenemedi', 'danger'); }
       });
       this._wireLongPress(cell, p.id);
     });
